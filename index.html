@@ -55,16 +55,126 @@ h1,h2,h3{margin-top:0}.grid{display:grid;gap:14px}.g2{grid-template-columns:repe
     <aside id="nav"></aside>
     <main class="content">
 
-      <section id="dashboard" class="view">
-        <h2>Inicio</h2>
-        <div class="grid g4">
-          <div class="card kpi"><span class="muted">Vehículos</span><strong id="kCars">0</strong></div>
-          <div class="card kpi"><span class="muted">Órdenes abiertas</span><strong id="kOpen">0</strong></div>
-          <div class="card kpi"><span class="muted">Pendientes</span><strong id="kPending">0</strong></div>
-          <div class="card kpi" id="moneyKpi"><span class="muted">Ventas autorizadas</span><strong id="kSales">L 0.00</strong></div>
-        </div>
-        <div class="card"><h3>Actividad reciente</h3><div id="recent"></div></div>
-      </section>
+     <section id="dashboard" class="view">
+  <h2>Inicio</h2>
+  <p class="muted">Resumen general del taller</p>
+
+  <!-- OPERACIÓN -->
+  <h3>🚗 Operación</h3>
+  <div class="grid g4">
+    <div class="card kpi">
+      <span class="muted">Vehículos en taller</span>
+      <strong id="kCars">0</strong>
+    </div>
+
+    <div class="card kpi">
+      <span class="muted">Órdenes abiertas</span>
+      <strong id="kOpen">0</strong>
+    </div>
+
+    <div class="card kpi">
+      <span class="muted">Pendientes</span>
+      <strong id="kPending">0</strong>
+    </div>
+
+    <div class="card kpi">
+      <span class="muted">Tiempo promedio</span>
+      <strong id="kAvgTime">0 días</strong>
+    </div>
+  </div>
+
+  <!-- INGRESOS -->
+  <h3>💰 Ingresos</h3>
+  <div class="grid g4">
+    <div class="card kpi">
+      <span class="muted">Ventas autorizadas</span>
+      <strong id="kSales">L 0.00</strong>
+    </div>
+
+    <div class="card kpi">
+      <span class="muted">💵 Efectivo</span>
+      <strong id="kCash">L 0.00</strong>
+    </div>
+
+    <div class="card kpi">
+      <span class="muted">💳 Tarjeta</span>
+      <strong id="kCard">L 0.00</strong>
+    </div>
+
+    <div class="card kpi">
+      <span class="muted">🏦 Transferencia</span>
+      <strong id="kTransfer">L 0.00</strong>
+    </div>
+  </div>
+
+  <!-- TÉCNICOS -->
+  <div class="card">
+    <h3>👨‍🔧 Rendimiento de técnicos</h3>
+
+    <div class="grid g4">
+      <div>
+        <span class="muted">Vehículos atendidos</span>
+        <strong id="techCars">0</strong>
+      </div>
+
+      <div>
+        <span class="muted">Trabajos terminados</span>
+        <strong id="techFinished">0</strong>
+      </div>
+
+      <div>
+        <span class="muted">Tiempo trabajado</span>
+        <strong id="techTime">0 h</strong>
+      </div>
+
+      <div>
+        <span class="muted">Técnicos activos</span>
+        <strong id="techActive">0</strong>
+      </div>
+    </div>
+
+    <div id="technicianSummary" style="margin-top:15px;">
+      <p class="muted">Todavía no hay trabajos registrados.</p>
+    </div>
+  </div>
+
+  <!-- ENCUESTAS -->
+  <div class="card">
+    <h3>⭐ Encuestas de clientes</h3>
+
+    <div class="grid g4">
+      <div class="card kpi">
+        <span class="muted">Encuestas recibidas</span>
+        <strong id="surveyCount">0</strong>
+      </div>
+
+      <div class="card kpi">
+        <span class="muted">Satisfacción</span>
+        <strong id="surveySatisfaction">0 / 5</strong>
+      </div>
+
+      <div class="card kpi">
+        <span class="muted">Trabajo realizado</span>
+        <strong id="surveyWork">0 / 5</strong>
+      </div>
+
+      <div class="card kpi">
+        <span class="muted">Recomendarían SMF</span>
+        <strong id="surveyRecommend">0%</strong>
+      </div>
+    </div>
+
+    <div id="surveySummary" style="margin-top:15px;">
+      <p class="muted">Todavía no hay encuestas recibidas.</p>
+    </div>
+  </div>
+
+  <!-- ACTIVIDAD -->
+  <div class="card">
+    <h3>🕒 Actividad reciente</h3>
+    <div id="recent"></div>
+  </div>
+</section>
 
       <section id="clientes" class="view">
         <h2>Clientes y vehículos</h2>
