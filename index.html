@@ -1032,5 +1032,66 @@ seedDemo();handleHash();if(location.hash)handleHash();
 })();
 </script>
 
+
+<script>
+/* V18.4 — listado y exportación de clientes */
+(function(){
+  function escX(v){return String(v??"").replace(/[&<>"]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m]));}
+  function rowsClientes(){
+    const customers=Array.isArray(window.db?.customers)?window.db.customers:[];
+    const vehicles=Array.isArray(window.db?.vehicles)?window.db.vehicles:[];
+    return customers.map(c=>{
+      const vs=vehicles.filter(v=>v.customerId===c.id);
+      return {id:c.id,tipo:c.type||"Persona",nombre:c.name||"",telefono:c.phone||"",rtn:c.rtn||"",vehiculos:vs.map(v=>v.plate).join(", "),cantidad:vs.length,estado:c.active===false?"Inactivo":"Activo"};
+    });
+  }
+  function ensureExportButtons(){
+    const card=document.getElementById("customerList")?.closest(".card");
+    if(!card)return;
+    const h=card.querySelector("h3");
+    if(!h||document.getElementById("customerExportBar"))return;
+    h.style.display="flex";h.style.justifyContent="space-between";h.style.alignItems="center";h.style.gap="10px";h.style.flexWrap="wrap";
+    const bar=document.createElement("span");
+    bar.id="customerExportBar";
+    bar.innerHTML='<button class="secondary" onclick="exportCustomersExcel()">📊 Descargar Excel</button> <button class="light" onclick="exportCustomersPDF()">📄 Descargar PDF</button>';
+    h.appendChild(bar);
+  }
+  window.exportCustomersExcel=function(){
+    const rows=rowsClientes();
+    if(!rows.length){alert("No hay clientes registrados para exportar.");return;}
+    const head=["Tipo","Cliente / Razón social","Teléfono","RTN","Vehículos","Cantidad de vehículos","Estado"];
+    const csv=[head,...rows.map(r=>[r.tipo,r.nombre,r.telefono,r.rtn,r.vehiculos,r.cantidad,r.estado])]
+      .map(row=>row.map(v=>'"'+String(v??"").replace(/"/g,'""')+'"').join(";")).join("\r\n");
+    const blob=new Blob(["\ufeff"+csv],{type:"text/csv;charset=utf-8;"});
+    const url=URL.createObjectURL(blob),a=document.createElement("a");
+    a.href=url;a.download="SMF_Clientes_"+new Date().toISOString().slice(0,10)+".csv";
+    document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);
+  };
+  window.exportCustomersPDF=function(){
+    const rows=rowsClientes();
+    if(!rows.length){alert("No hay clientes registrados para exportar.");return;}
+    const w=window.open("","_blank");
+    if(!w){alert("El navegador bloqueó la ventana. Permití ventanas emergentes para descargar el PDF.");return;}
+    w.document.write('<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Clientes registrados - SMF Taller</title><style>body{font-family:Arial,sans-serif;padding:28px;color:#111}h1{margin:0 0 5px}p{color:#555}table{width:100%;border-collapse:collapse;margin-top:20px}th,td{border:1px solid #ccc;padding:7px;font-size:11px;text-align:left}th{background:#f1f5f9}@media print{button{display:none}}</style></head><body>');
+    w.document.write('<h1>SMF Taller</h1><h2>Clientes registrados</h2><p>Fecha: '+new Date().toLocaleDateString("es-HN")+' · Total: '+rows.length+'</p>');
+    w.document.write('<table><thead><tr><th>Tipo</th><th>Cliente / Razón social</th><th>Teléfono</th><th>RTN</th><th>Vehículos</th><th>Cant.</th><th>Estado</th></tr></thead><tbody>');
+    rows.forEach(r=>w.document.write('<tr><td>'+escX(r.tipo)+'</td><td>'+escX(r.nombre)+'</td><td>'+escX(r.telefono)+'</td><td>'+escX(r.rtn||"—")+'</td><td>'+escX(r.vehiculos||"—")+'</td><td>'+r.cantidad+'</td><td>'+escX(r.estado)+'</td></tr>'));
+    w.document.write('</tbody></table><p style="margin-top:25px">SMF Taller · Servicios Múltiples Flores</p></body></html>');
+    w.document.close();
+    w.focus();
+    setTimeout(()=>w.print(),350);
+  };
+  const oldRefresh=window.refresh;
+  window.refresh=function(){
+    if(typeof oldRefresh==="function")oldRefresh();
+    setTimeout(ensureExportButtons,50);
+  };
+  setTimeout(ensureExportButtons,500);
+  document.addEventListener("click",e=>{
+    if(e.target.closest('[data-view="clientes"]'))setTimeout(ensureExportButtons,100);
+  });
+})();
+</script>
+
 </body>
 </html>
