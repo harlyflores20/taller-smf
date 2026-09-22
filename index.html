@@ -30,10 +30,16 @@ table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:10px 7px
 .checks input{width:auto}
 @media(max-width:800px){.reception-grid,.photo-grid{grid-template-columns:1fr 1fr}.photo-grid{grid-template-columns:repeat(2,1fr)}}
 
+
+.tech-order-card{padding:12px;border:1px solid var(--line);border-radius:10px;background:#f9fafb}
+.request-card{border:1px solid var(--line);border-radius:10px;padding:12px;margin-top:10px;background:#fff}
+.request-status{font-size:11px;font-weight:700}
+
 </style>
 </head>
 <body>
-<header><h1>🔧 Servicios Múltiples Flores</h1><small>Sistema de gestión del taller · V4</small></header>
+<div id="loginScreen" style="position:fixed;inset:0;background:rgba(17,24,39,.96);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px"><div class="card" style="width:min(420px,100%)"><h2>🔐 SMF Taller</h2><p class="muted">Ingresá con tu usuario y contraseña.</p><label>Usuario</label><input id="loginUser" autocomplete="username" placeholder="Usuario"><label>Contraseña</label><input id="loginPass" type="password" autocomplete="current-password" placeholder="Contraseña"><div class="actions"><button class="success" onclick="loginSMF()">Ingresar</button></div><div id="loginMsg"></div></div></div>
+<header><h1>🔧 Servicios Múltiples Flores</h1><small>Sistema de gestión del taller · V7 · <span id="sessionLabel">Sin sesión</span> <button class="secondary" style="margin-left:8px" onclick="logoutSMF()">Salir</button></small></header>
 <nav id="nav"><button data-view="dashboard" class="active">Inicio</button><button data-view="clientes">Clientes / Vehículos</button><button data-view="orden">Nueva orden</button><button data-view="historial">Historial</button><button data-view="compras">Compras</button><button data-view="reportes">Reportes</button></nav>
 <main>
 <section id="dashboard" class="view active"><h2>Dashboard</h2><div class="grid g4"><div class="card kpi"><span class="muted">Órdenes registradas</span><strong id="kOrders">0</strong></div><div class="card kpi"><span class="muted">Vehículos</span><strong id="kCars">0</strong></div><div class="card kpi"><span class="muted">Pendientes</span><strong id="kPending">0</strong></div><div class="card kpi"><span class="muted">Ventas acumuladas</span><strong id="kSales">L 0.00</strong></div></div><div class="card" style="margin-top:16px"><h3>Últimas órdenes</h3><div id="dashOrders"></div></div></section>
@@ -42,13 +48,74 @@ table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:10px 7px
 <div id="vehicleResult" class="hidden" style="margin-top:16px"><div class="grid g2"><div class="card"><h3>👤 Cliente / propietario</h3><div class="info" id="ownerInfo"></div></div><div class="card"><h3>🚗 Vehículo</h3><div class="info" id="carInfo"></div></div></div><div class="card" style="margin-top:16px"><h3>📋 Historial de esta placa</h3><div id="plateHistory"></div></div><div class="actions"><button onclick="goNewOrderFromSearch()">➕ Nueva recepción para este vehículo</button></div></div>
 <div class="card" style="margin-top:16px"><h3>➕ Registrar cliente / vehículo</h3><div class="grid g2"><div><label>Tipo de cliente</label><select id="cType" onchange="toggleRTN()"><option>Persona</option><option>Empresa</option></select><label>Nombre / Razón social *</label><input id="cName"><label>Teléfono *</label><input id="cPhone"></div><div><label>RTN</label><input id="cRTN" disabled placeholder="Obligatorio para empresa"><label>Placa *</label><input id="cPlate" class="plate"><label>Vehículo</label><div class="grid g2"><div><label>Marca *</label><select id="cMake" onchange="updateModelOptions('cMake','cModel','cYear')"></select></div><div><label>Modelo *</label><select id="cModel" onchange="updateYearOptions('cMake','cModel','cYear')"><option value="">Seleccioná marca primero</option></select></div><div><label>Año *</label><select id="cYear"><option value="">Seleccioná modelo primero</option></select></div><div><label>Color</label><input id="cColor" placeholder="Opcional"></div></div></div></div><div class="grid g2"><div><label>Motor</label><input id="cEngine"></div><div><label>Kilometraje</label><input id="cKm" type="number"></div></div><div class="actions"><button onclick="saveClientCar()">Guardar cliente y vehículo</button></div><div id="saveMsg"></div></div></section>
 
-<section id="orden" class="view"><h2>Recepción de vehículo</h2>
+<section id="orden" class="view"><input type="hidden" id="oPlate"><input type="hidden" id="oKm"><h2>Recepción de vehículo</h2>
 <div class="notice">📌 Primero identificamos al cliente y el vehículo. Si la placa es nueva, podemos agregarla a un cliente existente. <b>Recepción no maneja precios, diagnóstico, repuestos ni pagos.</b></div>
 <div class="card"><h3>🔎 1. Buscar cliente o placa</h3><div class="searchbar"><input id="receptionSearch" placeholder="Placa, nombre, teléfono o RTN"><button onclick="searchReception()">Buscar</button></div><div id="receptionSearchMsg"></div><div id="receptionMatches"></div><div id="selectedCustomer" class="notice hidden"></div>
 <div id="vehicleChoice" class="hidden" style="margin-top:12px"><label>Vehículo del cliente</label><select id="receptionVehicle" onchange="selectReceptionVehicle()"></select><div class="actions"><button class="secondary" onclick="newVehicleForCustomer()">➕ Agregar otro vehículo a este cliente</button></div></div>
 <div id="newVehiclePanel" class="hidden" style="margin-top:12px"><h4>🚗 Nuevo vehículo</h4><div class="grid g2"><div><label>Placa *</label><input id="newPlate" class="plate"></div><div><label>Kilometraje al recibir</label><input id="newKm" type="number" min="0"></div><div><label>Marca *</label><select id="newMake" onchange="updateModelOptions('newMake','newModel','newYear')"></select></div><div><label>Modelo *</label><select id="newModel" onchange="updateYearOptions('newMake','newModel','newYear')"><option value="">Seleccioná marca primero</option></select></div><div><label>Año *</label><select id="newYear"><option value="">Seleccioná modelo primero</option></select></div><div><label>Color</label><input id="newColor"></div><div><label>Motor</label><input id="newEngine"></div></div><div class="actions"><button onclick="saveNewReceptionVehicle()">Guardar vehículo y continuar</button></div></div></div>
 <div class="card" style="margin-top:16px"><h3>👤 2. Persona que entrega</h3><div class="grid g2"><div><label>Nombre de quien entrega *</label><input id="delivererName" placeholder="Puede ser dueño, empleado o familiar"></div><div><label>Teléfono de quien entrega</label><input id="delivererPhone"></div></div></div>
-<div class="card" style="margin-top:16px"><h3>🚗 3. Datos de recepción</h3><label>Motivo de ingreso indicado por el cliente *</label><textarea id="rReason" placeholder="Ej.: vibra al frenar, revisar aire acondicionado, cambio de aceite..."></textarea><div class="reception-grid"><div><label>Condición / daños visibles al ingreso</label><textarea id="rCondition" placeholder="Golpes, rayones, vidrios, luces encendidas, accesorios, etc."></textarea></div><div><label>Observaciones de recepción</label><textarea id="rNotes" placeholder="Información adicional que el cliente deja al ingresar el vehículo..."></textarea></div></div><label>Checklist de ingreso</label><div class="checks"><label><input type="checkbox" id="rFuel"> Nivel de combustible verificado</label><label><input type="checkbox" id="rDash"> Testigos del tablero verificados</label><label><input type="checkbox" id="rTools"> Herramientas/objetos en vehículo anotados</label><label><input type="checkbox" id="rKeys"> Llaves recibidas</label></div><label style="margin-top:12px">Fotos de ingreso <span class="subtle">(se comprimen y quedan asociadas a la recepción)</span></label><div class="photo-grid"><div class="photo-box"><label>Frontal</label><input type="file" accept="image/*" capture="environment" onchange="previewPhoto(this,'photoFront')"><div id="photoFront" class="photo-empty">Sin foto</div></div><div class="photo-box"><label>Trasera</label><input type="file" accept="image/*" capture="environment" onchange="previewPhoto(this,'photoRear')"><div id="photoRear" class="photo-empty">Sin foto</div></div><div class="photo-box"><label>Lado izquierdo</label><input type="file" accept="image/*" capture="environment" onchange="previewPhoto(this,'photoLeft')"><div id="photoLeft" class="photo-empty">Sin foto</div></div><div class="photo-box"><label>Lado derecho</label><input type="file" accept="image/*" capture="environment" onchange="previewPhoto(this,'photoRight')"><div id="photoRight" class="photo-empty">Sin foto</div></div></div><div class="photo-box" style="margin-top:10px"><label>📊 Tablero / kilometraje</label><input type="file" accept="image/*" capture="environment" onchange="previewPhoto(this,'photoDash')"><div id="photoDash" class="photo-empty">Sin foto</div></div><div class="actions"><button class="success" onclick="saveOrder()">✓ Registrar recepción</button><button class="secondary" onclick="resetOrder()">Limpiar</button></div><div id="orderMsg"></div></div></section>
+<div class="card" style="margin-top:16px"><h3>🔧 3. Asignación de técnico</h3><div class="grid g2"><div><label>Técnico asignado *</label><select id="assignedTechnician"><option value="">Seleccioná técnico</option><option value="tecnico1">Usuario 1</option><option value="tecnico2">Usuario 2</option><option value="tecnico3">Usuario 3</option></select></div></div><div class="notice">El técnico verá automáticamente esta orden en su usuario. No necesita buscar por placa.</div></div><div class="card" style="margin-top:16px"><h3>🚗 4. Datos de recepción</h3><label>Motivo de ingreso indicado por el cliente *</label><textarea id="rReason" placeholder="Ej.: vibra al frenar, revisar aire acondicionado, cambio de aceite..."></textarea><div class="reception-grid"><div><label>Condición / daños visibles al ingreso</label><textarea id="rCondition" placeholder="Golpes, rayones, vidrios, luces encendidas, accesorios, etc."></textarea></div><div><label>Observaciones de recepción</label><textarea id="rNotes" placeholder="Información adicional que el cliente deja al ingresar el vehículo..."></textarea></div></div><label>Checklist de ingreso</label><div class="checks"><label><input type="checkbox" id="rFuel"> Nivel de combustible verificado</label><label><input type="checkbox" id="rDash"> Testigos del tablero verificados</label><label><input type="checkbox" id="rTools"> Herramientas/objetos en vehículo anotados</label><label><input type="checkbox" id="rKeys"> Llaves recibidas</label></div><label style="margin-top:12px">Fotos de ingreso <span class="subtle">(se comprimen y quedan asociadas a la recepción)</span></label><div class="photo-grid"><div class="photo-box"><label>Frontal</label><input type="file" accept="image/*" capture="environment" onchange="previewPhoto(this,'photoFront')"><div id="photoFront" class="photo-empty">Sin foto</div></div><div class="photo-box"><label>Trasera</label><input type="file" accept="image/*" capture="environment" onchange="previewPhoto(this,'photoRear')"><div id="photoRear" class="photo-empty">Sin foto</div></div><div class="photo-box"><label>Lado izquierdo</label><input type="file" accept="image/*" capture="environment" onchange="previewPhoto(this,'photoLeft')"><div id="photoLeft" class="photo-empty">Sin foto</div></div><div class="photo-box"><label>Lado derecho</label><input type="file" accept="image/*" capture="environment" onchange="previewPhoto(this,'photoRight')"><div id="photoRight" class="photo-empty">Sin foto</div></div></div><div class="photo-box" style="margin-top:10px"><label>📊 Tablero / kilometraje</label><input type="file" accept="image/*" capture="environment" onchange="previewPhoto(this,'photoDash')"><div id="photoDash" class="photo-empty">Sin foto</div></div><div class="actions"><button class="success" onclick="saveOrder()">✓ Registrar recepción</button><button class="secondary" onclick="resetOrder()">Limpiar</button></div><div id="orderMsg"></div></div></section>
+
+<section id="tecnico" class="view"><h2>🔧 Área del técnico</h2>
+<div class="notice">Aquí el técnico trabaja sobre vehículos que ya fueron recibidos. <b>No maneja precios, cobros ni autorización.</b> Su función es diagnosticar, indicar el trabajo necesario, solicitar repuestos con evidencia y dejar evidencia final.</div>
+
+<div class="card">
+<h3>1. Mis vehículos asignados</h3>
+<div class="notice">Las órdenes aparecen automáticamente según tu usuario. <b>No se busca por placa.</b></div>
+<div id="techAssignedList"></div>
+<div id="techSearchMsg"></div>
+<div id="techOrderInfo" class="hidden" style="margin-top:12px"></div>
+</div>
+
+<div id="techWorkPanel" class="hidden">
+<div class="card" style="margin-top:16px">
+<h3>2. Diagnóstico</h3>
+<div class="grid g2">
+<div><label>Diagnóstico / hallazgos *</label><textarea id="techDiagnosis" placeholder="Qué encontró el técnico, mediciones, pruebas realizadas, códigos, etc."></textarea></div>
+<div><label>Trabajo recomendado *</label><textarea id="techRecommendation" placeholder="Qué se recomienda reparar, reemplazar o realizar."></textarea></div>
+<div><label>Observaciones técnicas</label><textarea id="techNotes" placeholder="Información técnica adicional."></textarea></div>
+<div><label>Pruebas / verificaciones realizadas</label><textarea id="techTests" placeholder="Prueba de ruta, escáner, presión, voltajes, funcionamiento, etc."></textarea></div>
+</div>
+<div class="actions"><button onclick="saveTechnicianDiagnosis()">💾 Guardar diagnóstico</button></div>
+<div id="techDiagMsg"></div>
+</div>
+
+<div class="card" style="margin-top:16px">
+<h3>3. Solicitud de repuestos / materiales</h3>
+<div class="notice">El técnico solicita lo que necesita y explica por qué. <b>No coloca costo ni precio.</b> La foto de la pieza dañada se adjunta aquí y luego podrá mostrarse al cliente en el presupuesto.</div>
+<div class="grid g2">
+<div><label>Repuesto / material solicitado *</label><input id="reqItem" placeholder="Ej.: soporte de motor"></div>
+<div><label>Cantidad *</label><input id="reqQty" type="number" min="1" step="1" value="1"></div>
+<div><label>Motivo de la solicitud *</label><textarea id="reqReason" placeholder="Ej.: pieza quebrada, desgaste excesivo, fuga, prueba fallida..."></textarea></div>
+<div><label>Observación para recepción</label><textarea id="reqNote" placeholder="Marca sugerida, especificación o información adicional."></textarea></div>
+</div>
+<label>📸 Foto de la pieza dañada / evidencia *</label>
+<input id="reqPhotoInput" type="file" accept="image/*" capture="environment" onchange="previewTechnicianPhoto(this)">
+<div id="reqPhotoPreview" class="photo-empty" style="margin-top:8px">Sin foto</div>
+<div class="actions"><button onclick="savePartRequest()">📨 Enviar solicitud a recepción</button></div>
+<div id="reqMsg"></div>
+<div id="partRequestsList" style="margin-top:14px"></div>
+</div>
+
+<div class="card" style="margin-top:16px">
+<h3>4. Trabajo autorizado y evidencia final</h3>
+<div class="notice">Cuando el presupuesto haya sido autorizado, aquí aparecerá el trabajo autorizado. El técnico <b>solo ejecuta ese alcance</b> y al terminar deja evidencia.</div>
+<div id="authorizedWork" class="empty">Todavía no hay un trabajo autorizado para esta orden.</div>
+<div id="finalPhotosArea" class="hidden">
+<label>Fotos finales del trabajo realizado</label>
+<div class="photo-grid">
+<div class="photo-box"><label>Trabajo terminado 1</label><input type="file" accept="image/*" capture="environment" onchange="previewTechFinalPhoto(this,'final1')"><div id="final1" class="photo-empty">Sin foto</div></div>
+<div class="photo-box"><label>Trabajo terminado 2</label><input type="file" accept="image/*" capture="environment" onchange="previewTechFinalPhoto(this,'final2')"><div id="final2" class="photo-empty">Sin foto</div></div>
+<div class="photo-box"><label>Trabajo terminado 3</label><input type="file" accept="image/*" capture="environment" onchange="previewTechFinalPhoto(this,'final3')"><div id="final3" class="photo-empty">Sin foto</div></div>
+<div class="photo-box"><label>Tablero / resultado</label><input type="file" accept="image/*" capture="environment" onchange="previewTechFinalPhoto(this,'finalDash')"><div id="finalDash" class="photo-empty">Sin foto</div></div>
+</div>
+<label>Notas de finalización</label><textarea id="techFinalNotes" placeholder="Qué se hizo, pruebas finales y observaciones para recepción."></textarea>
+<div class="actions"><button class="success" onclick="finishTechnicianWork()">✓ Marcar trabajo técnico terminado</button></div>
+<div id="techFinalMsg"></div>
+</div>
+</div>
+</section>
+
 <section id="historial" class="view"><h2>Historial general</h2><div class="card"><div id="allHistory"></div></div></section>
 <section id="compras" class="view"><h2>Compras / Repuestos</h2><div class="card"><p class="muted">Aquí registramos compras asociadas a una orden o vehículo. No se controla existencia de inventario.</p><div class="grid g2"><div><label>Agencia</label><input id="pAgency"></div><div><label>Número de factura</label><input id="pInvoice"></div><div><label>Repuesto / material</label><input id="pItem"></div><div><label>Placa</label><input id="pPlate" class="plate"></div><div><label>Costo</label><input id="pCost" type="number" step="0.01"></div><div><label>Precio cobrado</label><input id="pSell" type="number" step="0.01"></div></div><div class="actions"><button onclick="savePurchase()">Guardar compra</button></div><div id="purchaseMsg"></div></div><div class="card" style="margin-top:16px"><div id="purchasesTable"></div></div></section>
 <section id="reportes" class="view"><h2>Reportes</h2><div class="grid g4"><div class="card kpi"><span class="muted">Ventas</span><strong id="rSales">L 0.00</strong></div><div class="card kpi"><span class="muted">Costo repuestos</span><strong id="rCost">L 0.00</strong></div><div class="card kpi"><span class="muted">Margen registrado</span><strong id="rMargin">L 0.00</strong></div><div class="card kpi"><span class="muted">Órdenes</span><strong id="rOrders">0</strong></div></div></section>
@@ -60,6 +127,7 @@ let db=JSON.parse(localStorage.getItem(KEY)||"null")||demo,currentPlate="";
 if(!db.customers)db.customers={};
 Object.values(db.clients||{}).forEach(c=>{if(!c.ownerId){c.ownerId="c"+Date.now()+Math.random().toString(36).slice(2,7);db.customers[c.ownerId]={id:c.ownerId,type:c.type||"Persona",name:c.name||"",phone:c.phone||"",rtn:c.rtn||""};}else if(!db.customers[c.ownerId])db.customers[c.ownerId]={id:c.ownerId,type:c.type||"Persona",name:c.name||"",phone:c.phone||"",rtn:c.rtn||""};});
 function customerVehicles(id){return Object.values(db.clients||{}).filter(c=>c.ownerId===id)}
+Object.values(db.orders||{}).forEach((o,i)=>{if(!o.assignedTechnician)o.assignedTechnician=["tecnico1","tecnico2","tecnico3"][i%3];o.technician=o.technician||{userId:o.assignedTechnician};});
 function persist(){localStorage.setItem(KEY,JSON.stringify(db));refreshAll()}function money(n){return "L "+Number(n||0).toLocaleString("es-HN",{minimumFractionDigits:2,maximumFractionDigits:2})}
 function normItem(x){let q=Number(x.qty||1),cu=Number(x.costUnit??x.cost??0),pu=Number(x.priceUnit??x.price??0);return {...x,qty:q,costUnit:cu,priceUnit:pu,cost:q*cu,price:q*pu}}
 function totalOrder(o){return(o.items||[]).reduce((s,x)=>s+Number(normItem(x).price||0),0)}function costOrder(o){return(o.items||[]).reduce((s,x)=>s+Number(normItem(x).cost||0),0)}
@@ -74,17 +142,138 @@ function saveClientCar(){let type=cType.value,name=cName.value.trim(),phone=cPho
 function goNewOrderFromSearch(){show("orden");receptionSearch.value=currentPlate;searchReception()}
 function searchReception(){let q=receptionSearch.value.trim().toUpperCase();if(!q){receptionSearchMsg.innerHTML='<div class="notice">Escribí una placa, nombre, teléfono o RTN.</div>';return}let exact=db.clients[q],owners=exact?[db.customers[exact.ownerId]||exact]:Object.values(db.customers||{}).filter(c=>[c.name,c.phone,c.rtn].some(v=>String(v||"").toUpperCase().includes(q)));if(!owners.length){receptionSearchMsg.innerHTML='<div class="notice">⚠️ No encontramos ese cliente. Registralo desde <b>Clientes / Vehículos</b>.</div>';receptionMatches.innerHTML="";return}receptionSearchMsg.innerHTML='<div class="notice">Seleccioná el cliente correcto.</div>';receptionMatches.innerHTML=owners.slice(0,8).map(c=>`<div class="card" style="margin-top:10px"><b>${c.name}</b><div class="muted">${c.phone||"Sin teléfono"} ${c.rtn?`· RTN ${c.rtn}`:""}</div><div class="actions"><button onclick="selectReceptionCustomer('${c.id}')">Seleccionar</button></div></div>`).join("")}
 function selectReceptionCustomer(id){let c=db.customers[id];if(!c)return;selectedCustomer.classList.remove("hidden");selectedCustomer.innerHTML=`👤 <b>${c.name}</b> · ${c.phone||"Sin teléfono"} ${c.rtn?`· RTN ${c.rtn}`:""}`;let vs=customerVehicles(id);receptionVehicle.innerHTML=vs.length?vs.map(v=>`<option value="${v.plate}">${v.plate} · ${v.make} ${v.model} ${v.year}</option>`).join(""):`<option value="">No tiene vehículos registrados</option>`;vehicleChoice.classList.remove("hidden");if(vs.length)selectReceptionVehicle();else newVehicleForCustomer()}
-function selectReceptionVehicle(){let p=receptionVehicle.value,c=db.clients[p];if(!c)return;currentPlate=p;oPlate.value=p;oKm.value=c.km||"";newVehiclePanel.classList.add("hidden");receptionSearchMsg.innerHTML=`<div class="notice">✓ Vehículo seleccionado: <b>${c.plate}</b> · ${c.make} ${c.model} ${c.year}</div>`}
+function selectReceptionVehicle(){let p=receptionVehicle.value,c=db.clients[p];if(!c)return;currentPlate=p;document.getElementById("oPlate").value=p;document.getElementById("oKm").value=c.km||"";newVehiclePanel.classList.add("hidden");receptionSearchMsg.innerHTML=`<div class="notice">✓ Vehículo seleccionado: <b>${c.plate}</b> · ${c.make} ${c.model} ${c.year}</div>`}
 function newVehicleForCustomer(){newVehiclePanel.classList.remove("hidden");populateMakeSelect("newMake");updateModelOptions("newMake","newModel","newYear")}
-function saveNewReceptionVehicle(){let selected=Object.values(db.customers||{}).find(c=>selectedCustomer.textContent.includes(c.name));if(!selected)return;let plate=newPlate.value.trim().toUpperCase(),make=newMake.value,model=newModel.value,year=newYear.value;if(!plate||!make||!model||!year)return receptionSearchMsg.innerHTML='<div class="notice">Completá placa, marca, modelo y año.</div>';if(db.clients[plate])return receptionSearchMsg.innerHTML='<div class="notice">Esa placa ya está registrada. Buscala.</div>';db.clients[plate]={id:"v"+Date.now(),ownerId:selected.id,type:selected.type,name:selected.name,phone:selected.phone,rtn:selected.rtn,plate,make,model,year,engine:newEngine.value.trim(),color:newColor.value.trim(),km:newKm.value||0};persist();currentPlate=plate;oPlate.value=plate;oKm.value=newKm.value||0;vehicleChoice.classList.add("hidden");newVehiclePanel.classList.add("hidden");receptionSearchMsg.innerHTML='<div class="notice">✓ Vehículo agregado al cliente y seleccionado para recepción.</div>'}
-function loadOrderVehicle(){let p=oPlate.value.trim().toUpperCase(),c=db.clients[p];if(!c){orderVehicle.classList.remove("hidden");orderVehicle.textContent="⚠️ Primero buscá y seleccioná un cliente y vehículo.";return}currentPlate=p;orderVehicle.classList.remove("hidden");let owner=db.customers[c.ownerId]||c;orderVehicle.innerHTML=`✓ <b>${owner.name}</b> · ${c.make} ${c.model} ${c.year} · ${p}`;oKm.value=c.km||""}
+function saveNewReceptionVehicle(){let selected=Object.values(db.customers||{}).find(c=>selectedCustomer.textContent.includes(c.name));if(!selected)return;let plate=newPlate.value.trim().toUpperCase(),make=newMake.value,model=newModel.value,year=newYear.value;if(!plate||!make||!model||!year)return receptionSearchMsg.innerHTML='<div class="notice">Completá placa, marca, modelo y año.</div>';if(db.clients[plate])return receptionSearchMsg.innerHTML='<div class="notice">Esa placa ya está registrada. Buscala.</div>';db.clients[plate]={id:"v"+Date.now(),ownerId:selected.id,type:selected.type,name:selected.name,phone:selected.phone,rtn:selected.rtn,plate,make,model,year,engine:newEngine.value.trim(),color:newColor.value.trim(),km:newKm.value||0};persist();currentPlate=plate;document.getElementById("oPlate").value=plate;document.getElementById("oKm").value=newKm.value||0;vehicleChoice.classList.add("hidden");newVehiclePanel.classList.add("hidden");receptionSearchMsg.innerHTML='<div class="notice">✓ Vehículo agregado al cliente y seleccionado para recepción.</div>'}
+function loadOrderVehicle(){let p=document.getElementById("oPlate").value.trim().toUpperCase(),c=db.clients[p];if(!c){orderVehicle.classList.remove("hidden");orderVehicle.textContent="⚠️ Primero buscá y seleccioná un cliente y vehículo.";return}currentPlate=p;orderVehicle.classList.remove("hidden");let owner=db.customers[c.ownerId]||c;orderVehicle.innerHTML=`✓ <b>${owner.name}</b> · ${c.make} ${c.model} ${c.year} · ${p}`;document.getElementById("oKm").value=c.km||""}
 function addItem(data={}){data=normItem(data);let tr=document.createElement("tr");tr.innerHTML=`<td><input class="itQty" type="number" min="1" step="1" value="${data.qty}" oninput="calcTotal()"></td><td><input class="itConcept" value="${data.concept||""}" placeholder="Ej. Cambio de aceite"></td><td><select class="itCat"><option ${data.cat==="Mano de obra"?"selected":""}>Mano de obra</option><option ${data.cat==="Lubricantes"?"selected":""}>Lubricantes</option><option ${data.cat==="Repuestos"?"selected":""}>Repuestos</option><option ${data.cat==="Materiales"?"selected":""}>Materiales</option><option ${data.cat==="Otros"?"selected":""}>Otros</option></select></td><td><input class="itCost" type="number" step=".01" value="${data.costUnit}" oninput="calcTotal()"></td><td><input class="itPrice" type="number" step=".01" value="${data.priceUnit}" oninput="calcTotal()"></td><td class="itCostTotal">${money(data.cost)}</td><td class="itPriceTotal">${money(data.price)}</td><td class="itProfit line-profit">${money(data.price-data.cost)}</td><td><button class="danger" onclick="this.closest('tr').remove();calcTotal()">×</button></td>`;items.appendChild(tr);calcTotal()}
 function calcTotal(){let cost=0,price=0;document.querySelectorAll("#items tr").forEach(tr=>{let q=Number(tr.querySelector(".itQty").value||1),cu=Number(tr.querySelector(".itCost").value||0),pu=Number(tr.querySelector(".itPrice").value||0),c=q*cu,p=q*pu;cost+=c;price+=p;tr.querySelector(".itCostTotal").textContent=money(c);tr.querySelector(".itPriceTotal").textContent=money(p);tr.querySelector(".itProfit").textContent=money(p-c)});orderCost.textContent=money(cost);orderTotal.textContent=money(price);orderProfit.textContent=money(price-cost)}
-function saveOrder(){let p=oPlate.value.trim().toUpperCase(),reason=rReason.value.trim(),deliverer=delivererName.value.trim();if(!db.clients[p])return orderMsg.innerHTML='<div class="notice">Primero seleccioná un cliente y vehículo.</div>';if(!reason)return orderMsg.innerHTML='<div class="notice">Escribí el motivo de ingreso indicado por el cliente.</div>';if(!deliverer)return orderMsg.innerHTML='<div class="notice">Indicá quién está entregando el vehículo.</div>';let c=db.clients[p];let o={id:"o"+Date.now(),date:new Date().toLocaleDateString("es-HN"),plate:p,status:"Recibido",pay:"",invoiceRTN:false,items:[],notes:"",reception:saveReceptionData(),ownerId:c.ownerId,deliverer:{name:deliverer,phone:delivererPhone.value.trim()}};db.orders.push(o);c.km=oKm.value||c.km;persist();orderMsg.innerHTML='<div class="notice">✓ Recepción registrada. El vehículo quedó en <b>Recibido</b> y listo para diagnóstico.</div>';resetOrder(false)}
-function resetOrder(clear=true){if(clear){oPlate.value="";oKm.value="";receptionSearch.value="";receptionSearchMsg.innerHTML="";receptionMatches.innerHTML="";selectedCustomer.classList.add("hidden");vehicleChoice.classList.add("hidden");newVehiclePanel.classList.add("hidden");delivererName.value="";delivererPhone.value="";rReason.value="";orderMsg.innerHTML="";clearReception()}}
+function saveOrder(){let p=document.getElementById("oPlate").value.trim().toUpperCase(),reason=document.getElementById("rReason").value.trim(),deliverer=document.getElementById("delivererName").value.trim(),assigned=document.getElementById("assignedTechnician").value;if(!db.clients[p])return orderMsg.innerHTML='<div class="notice">Primero seleccioná un cliente y vehículo.</div>';if(!reason)return orderMsg.innerHTML='<div class="notice">Escribí el motivo de ingreso indicado por el cliente.</div>';if(!deliverer)return orderMsg.innerHTML='<div class="notice">Indicá quién está entregando el vehículo.</div>';if(!assigned)return orderMsg.innerHTML='<div class="notice">Seleccioná el técnico asignado.</div>';let c=db.clients[p];let o={id:"o"+Date.now(),date:new Date().toLocaleDateString("es-HN"),plate:p,status:"Recibido",pay:"",invoiceRTN:false,items:[],notes:"",reception:saveReceptionData(),ownerId:c.ownerId,deliverer:{name:deliverer,phone:document.getElementById("delivererPhone").value.trim()},assignedTechnician:assigned,technician:{userId:assigned}};db.orders.push(o);c.km=document.getElementById("oKm").value||c.km;persist();orderMsg.innerHTML='<div class="notice">✓ Recepción registrada. Técnico asignado: <b>'+techLabel(assigned)+'</b>. El vehículo quedó en <b>Recibido</b>.</div>';resetOrder(false)}
+function resetOrder(clear=true){if(clear){document.getElementById("oPlate").value="";document.getElementById("oKm").value="";receptionSearch.value="";receptionSearchMsg.innerHTML="";receptionMatches.innerHTML="";selectedCustomer.classList.add("hidden");vehicleChoice.classList.add("hidden");newVehiclePanel.classList.add("hidden");delivererName.value="";delivererPhone.value="";rReason.value="";document.getElementById("assignedTechnician").value="";orderMsg.innerHTML="";clearReception()}}
 function renderAllHistory(){let a=[...db.orders].reverse();allHistory.innerHTML=a.length?`<table><thead><tr><th>Fecha</th><th>Placa</th><th>Cliente</th><th>Trabajo</th><th>Total</th><th>Estado</th></tr></thead><tbody>${a.map(o=>{let c=db.clients[o.plate]||{};return `<tr><td>${o.date}</td><td>${o.plate}</td><td>${c.name||"—"}</td><td>${o.reception?.reason||o.items.map(i=>i.concept).join(", ")||"Pendiente de diagnóstico"}</td><td>${money(totalOrder(o))}</td><td>${statusBadge(o.status)}</td></tr>`}).join("")}</tbody></table>`:'<div class="empty">No hay órdenes.</div>'}
 function savePurchase(){let p={id:"p"+Date.now(),agency:pAgency.value.trim(),invoice:pInvoice.value.trim(),item:pItem.value.trim(),plate:pPlate.value.trim().toUpperCase(),cost:Number(pCost.value||0),sell:Number(pSell.value||0)};if(!p.agency||!p.item||!p.cost)return purchaseMsg.innerHTML='<div class="notice">Completá agencia, repuesto y costo.</div>';db.purchases.push(p);persist();purchaseMsg.innerHTML='<div class="notice">✓ Compra guardada.</div>';["pAgency","pInvoice","pItem","pPlate","pCost","pSell"].forEach(id=>document.getElementById(id).value="")}
 function renderPurchases(){purchasesTable.innerHTML=db.purchases.length?`<table><thead><tr><th>Agencia</th><th>Factura</th><th>Repuesto</th><th>Placa</th><th>Costo</th><th>Venta</th><th>Margen</th></tr></thead><tbody>${db.purchases.map(p=>`<tr><td>${p.agency}</td><td>${p.invoice||"—"}</td><td>${p.item}</td><td>${p.plate||"—"}</td><td>${money(p.cost)}</td><td>${money(p.sell)}</td><td>${money(p.sell-p.cost)}</td></tr>`).join("")}</tbody></table>`:'<div class="empty">No hay compras registradas.</div>'}
+
+const USERS={admin:{id:"admin",user:"admin",pass:"admin123",role:"admin",label:"Administrador"},julio:{id:"julio",user:"julio",pass:"julio123",role:"reception",label:"Julio · Recepción"},tecnico1:{id:"tecnico1",user:"usuario1",pass:"usuario1123",role:"technician",label:"Usuario 1"},tecnico2:{id:"tecnico2",user:"usuario2",pass:"usuario2123",role:"technician",label:"Usuario 2"},tecnico3:{id:"tecnico3",user:"usuario3",pass:"usuario3123",role:"technician",label:"Usuario 3"}};
+let currentUser=null;
+function techLabel(id){return ({tecnico1:"Usuario 1",tecnico2:"Usuario 2",tecnico3:"Usuario 3"})[id]||id||"—"}
+function loginSMF(){const u=document.getElementById("loginUser").value.trim().toLowerCase(),p=document.getElementById("loginPass").value,found=Object.values(USERS).find(x=>x.user===u&&x.pass===p);if(!found){document.getElementById("loginMsg").innerHTML='<div class="notice">Usuario o contraseña incorrectos.</div>';return}currentUser={...found};document.getElementById("loginScreen").style.display="none";document.getElementById("sessionLabel").textContent=currentUser.label;applyRole();}
+function logoutSMF(){currentUser=null;document.getElementById("loginScreen").style.display="flex";document.getElementById("sessionLabel").textContent="Sin sesión";document.getElementById("loginUser").value="";document.getElementById("loginPass").value=""}
+function applyRole(){const role=currentUser.role;document.querySelectorAll('#nav button').forEach(b=>{const v=b.dataset.view;if(role==='technician')b.style.display=(v==='dashboard')?'':'none';else if(role==='reception')b.style.display=(['dashboard','orden','historial'].includes(v))?'':'none';else b.style.display=''});if(role==='technician'){document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));document.getElementById('tecnico').classList.add('active');renderTechnicianAssigned();}else if(role==='reception'){show('orden')}else{show('dashboard')}}
+let technicianPlate = "";
+let technicianPhoto = "";
+const technicianFinalPhotos = {};
+
+function technicianOrder(){
+  return db.orders.find(o => o.plate === technicianPlate);
+}
+
+function searchTechnicianOrder(){const id=arguments[0];const o=db.orders.find(x=>x.id===id && x.assignedTechnician===currentUser.id && !["Entregado","Cancelado"].includes(x.status));const panel=document.getElementById("techWorkPanel");if(!o){document.getElementById("techSearchMsg").innerHTML='<div class="notice">⚠️ Esa orden no está asignada a tu usuario.</div>';panel.classList.add("hidden");return}technicianPlate=o.plate;panel.classList.remove("hidden");const c=db.clients[o.plate],owner=db.customers[c.ownerId]||c;document.getElementById("techOrderInfo").classList.remove("hidden");document.getElementById("techOrderInfo").innerHTML=`<div class="tech-order-card"><b>${o.plate}</b> · ${owner.name} · ${c.make} ${c.model} ${c.year} · ${statusBadge(o.status)}<br><span class="muted">Motivo del cliente: ${o.reception?.reason||"—"}</span></div>`;document.getElementById("techDiagnosis").value=o.technician?.diagnosis||"";document.getElementById("techRecommendation").value=o.technician?.recommendation||"";document.getElementById("techNotes").value=o.technician?.notes||"";document.getElementById("techTests").value=o.technician?.tests||"";renderPartRequests(o);renderAuthorizedWork(o);document.getElementById("techDiagMsg").innerHTML="";document.getElementById("reqMsg").innerHTML="";document.getElementById("techFinalMsg").innerHTML="";}
+function renderTechnicianAssigned(){const box=document.getElementById("techAssignedList");if(!box)return;const arr=db.orders.filter(o=>o.assignedTechnician===currentUser?.id && !["Entregado","Cancelado"].includes(o.status));box.innerHTML=arr.length?arr.map(o=>{const c=db.clients[o.plate]||{};return `<div class="tech-order-card" style="margin-top:10px"><b>${o.plate}</b> · ${c.make||""} ${c.model||""} ${c.year||""}<br><span class="muted">Estado: ${o.status} · Motivo: ${o.reception?.reason||"—"}</span><div class="actions"><button onclick="searchTechnicianOrder('${o.id}')">Abrir orden</button></div></div>`}).join(""):'<div class="empty">No tenés vehículos asignados.</div>';}
+function saveTechnicianDiagnosis(){
+  const o=technicianOrder();
+  if(!o)return;
+  const diagnosis=document.getElementById("techDiagnosis").value.trim();
+  const recommendation=document.getElementById("techRecommendation").value.trim();
+  if(!diagnosis||!recommendation){
+    document.getElementById("techDiagMsg").innerHTML='<div class="notice">Completá diagnóstico y trabajo recomendado.</div>';
+    return;
+  }
+  o.technician=o.technician||{};
+  o.technician.diagnosis=diagnosis;
+  o.technician.recommendation=recommendation;
+  o.technician.notes=document.getElementById("techNotes").value.trim();
+  o.technician.tests=document.getElementById("techTests").value.trim();
+  o.technician.updatedAt=new Date().toISOString();
+  if(o.status==="Recibido")o.status="En proceso";
+  persist();
+  document.getElementById("techDiagMsg").innerHTML='<div class="notice">✓ Diagnóstico guardado. La orden pasó a <b>En proceso</b>.</div>';
+  searchTechnicianOrder();
+}
+
+function previewTechnicianPhoto(input){
+  if(!input.files||!input.files[0])return;
+  photoToDataURL(input.files[0]).then(data=>{
+    technicianPhoto=data;
+    document.getElementById("reqPhotoPreview").innerHTML=`<img class="photo-preview" src="${data}" alt="Evidencia de pieza dañada">`;
+  });
+}
+
+function savePartRequest(){
+  const o=technicianOrder();
+  const item=document.getElementById("reqItem").value.trim();
+  const qty=Number(document.getElementById("reqQty").value||0);
+  const reason=document.getElementById("reqReason").value.trim();
+  const note=document.getElementById("reqNote").value.trim();
+  if(!o)return;
+  if(!item||qty<1||!reason||!technicianPhoto){
+    document.getElementById("reqMsg").innerHTML='<div class="notice">Completá repuesto, cantidad, motivo y adjuntá la foto de evidencia.</div>';
+    return;
+  }
+  o.partRequests=o.partRequests||[];
+  o.partRequests.push({
+    id:"pr"+Date.now(),
+    item,qty,reason,note,
+    photo:technicianPhoto,
+    status:"Pendiente de recepción",
+    requestedAt:new Date().toISOString()
+  });
+  o.status="Esperando repuesto";
+  persist();
+  technicianPhoto="";
+  document.getElementById("reqItem").value="";
+  document.getElementById("reqQty").value="1";
+  document.getElementById("reqReason").value="";
+  document.getElementById("reqNote").value="";
+  document.getElementById("reqPhotoInput").value="";
+  document.getElementById("reqPhotoPreview").innerHTML="Sin foto";
+  document.getElementById("reqMsg").innerHTML='<div class="notice">✓ Solicitud enviada a recepción. La orden quedó en <b>Esperando repuesto</b>.</div>';
+  renderPartRequests(o);
+}
+
+function renderPartRequests(o){
+  const box=document.getElementById("partRequestsList");
+  const arr=o.partRequests||[];
+  if(!arr.length){box.innerHTML='<div class="empty">No hay solicitudes de repuestos todavía.</div>';return;}
+  box.innerHTML='<h4>Solicitudes enviadas</h4>'+arr.map(r=>`<div class="request-card"><b>${r.item}</b> · Cantidad: ${r.qty}<br><span class="muted">Motivo: ${r.reason}</span><br>${r.note?`<span class="muted">Nota: ${r.note}</span><br>`:""}<span class="request-status">${r.status}</span>${r.photo?`<div style="margin-top:8px;max-width:260px"><img class="photo-preview" src="${r.photo}" alt="Evidencia"></div>`:""}</div>`).join("");
+}
+
+function renderAuthorizedWork(o){
+  const box=document.getElementById("authorizedWork");
+  const area=document.getElementById("finalPhotosArea");
+  if(o.authorization?.authorized){
+    box.innerHTML=`<div class="tech-order-card"><b>Autorizado</b><br>${o.authorization.scope||"Trabajo autorizado"}<br><span class="muted">Total autorizado: ${money(o.authorization.total||0)}</span></div>`;
+    area.classList.remove("hidden");
+  }else{
+    box.innerHTML='<div class="empty">Todavía no hay un trabajo autorizado para esta orden.</div>';
+    area.classList.add("hidden");
+  }
+}
+
+function previewTechFinalPhoto(input,id){
+  if(!input.files||!input.files[0])return;
+  photoToDataURL(input.files[0]).then(data=>{
+    technicianFinalPhotos[id]=data;
+    document.getElementById(id).innerHTML=`<img class="photo-preview" src="${data}" alt="Foto final">`;
+  });
+}
+
+function finishTechnicianWork(){
+  const o=technicianOrder();
+  if(!o)return;
+  if(!o.authorization?.authorized){
+    document.getElementById("techFinalMsg").innerHTML='<div class="notice">El trabajo todavía no aparece como autorizado.</div>';
+    return;
+  }
+  o.technician=o.technician||{};
+  o.technician.finalPhotos={...(o.technician.finalPhotos||{}),...technicianFinalPhotos};
+  o.technician.finalNotes=document.getElementById("techFinalNotes").value.trim();
+  o.technician.finishedAt=new Date().toISOString();
+  o.status="Listo";
+  persist();
+  document.getElementById("techFinalMsg").innerHTML='<div class="notice">✓ Trabajo técnico terminado. El vehículo quedó <b>Listo</b> para continuar con cobro y entrega.</div>';
+}
+
 function refreshAll(){let orders=db.orders,cars=Object.keys(db.clients),sales=orders.reduce((s,o)=>s+totalOrder(o),0),cost=db.purchases.reduce((s,p)=>s+p.cost,0);kOrders.textContent=orders.length;kCars.textContent=cars.length;kPending.textContent=orders.filter(o=>o.status==="Pendiente"||o.status==="En proceso"||o.status==="Esperando repuesto").length;kSales.textContent=money(sales);rSales.textContent=money(sales);rCost.textContent=money(cost);rMargin.textContent=money(db.purchases.reduce((s,p)=>s+p.sell-p.cost,0));rOrders.textContent=orders.length;dashOrders.innerHTML=orders.length?`<table><thead><tr><th>Fecha</th><th>Placa</th><th>Cliente</th><th>Total</th><th>Estado</th></tr></thead><tbody>${orders.slice(-5).reverse().map(o=>`<tr><td>${o.date}</td><td>${o.plate}</td><td>${db.clients[o.plate]?.name||"—"}</td><td>${money(totalOrder(o))}</td><td>${statusBadge(o.status)}</td></tr>`).join("")}</tbody></table>`:'<div class="empty">No hay órdenes todavía.</div>';renderAllHistory();renderPurchases()}
 
 const VEHICLE_CATALOG={
@@ -198,6 +387,7 @@ populateMakeSelect();
 updateModelOptions("cMake","cModel","cYear");
 
 toggleRTN();refreshAll();
+document.getElementById("loginPass").addEventListener("keydown",e=>{if(e.key==="Enter")loginSMF()});
 </script>
 </body>
 </html>
