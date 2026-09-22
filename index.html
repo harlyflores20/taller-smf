@@ -207,6 +207,15 @@ h1,h2,h3{margin-top:0}.grid{display:grid;gap:14px}.g2{grid-template-columns:repe
   </div>
 </section>
 
+
+<section id="evaluacionPista" class="view">
+  <h2>🔎 Evaluación final — Jefe de Pista</h2>
+  <div class="card">
+    <div class="notice">Aquí llegan únicamente los vehículos que el Técnico marcó como <b>Trabajo terminado</b>. Jefe de Pista verifica físicamente el trabajo antes de avisar al cliente.</div>
+  </div>
+  <div id="pistaFinalOrders"></div>
+</section>
+
 </main>
   </div>
 </div>
@@ -404,10 +413,26 @@ function publicBudget(token){
 }
 function publicCard(o){
  let v=vehicle(o.vehicleId),c=customer(v.customerId),b=o.budget;let base=+b.parts+ +b.materials+ +b.labor;
- return `<h2>Presupuesto · ${esc(v.plate)}</h2><p><b>Cliente:</b> ${esc(c.name)}<br><b>Vehículo:</b> ${esc(v.make)} ${esc(v.model)} ${esc(v.year)}<br><b>Motivo:</b> ${esc(o.reason)}</p>
- <table><tr><th>Concepto</th><th>Valor</th></tr><tr><td>Repuestos</td><td>${money(b.parts)}</td></tr><tr><td>Materiales</td><td>${money(b.materials)}</td></tr><tr><td>Mano de obra</td><td>${money(b.labor)}</td></tr><tr><th>Total base</th><th>${money(base)}</th></tr></table>
+ const parts=(o.partRequests||[]).filter(r=>r.status!=="Cancelado");
+ return `<h2>Presupuesto · ${esc(v.plate)}</h2>
+ <p><b>Cliente:</b> ${esc(c.name)}<br><b>Vehículo:</b> ${esc(v.make)} ${esc(v.model)} ${esc(v.year)}<br><b>Motivo:</b> ${esc(o.reason)}</p>
+ ${parts.length?`<div class="card"><h3>🔧 Repuestos solicitados</h3>${parts.map(r=>`<div class="part-request-card">
+   <div class="part-head"><b>${esc(r.item)}</b><span>${esc(r.qty)} ud.</span></div>
+   ${r.photo?`<img class="part-photo" src="${r.photo}" alt="Pieza dañada">`:''}
+   <div class="muted" style="margin-top:6px">${esc(r.reason||"")}</div>
+   <div style="text-align:right;font-weight:800;margin-top:6px">${money(r.salePrice||0)}</div>
+ </div>`).join("")}</div>`:''}
+ <table><tr><th>Concepto</th><th>Valor</th></tr><tr><td>Repuestos</td><td>${money(b.parts)}</td></tr><tr><td>Materiales</td><td>${money(b.materials)}</td></tr><tr><td>Mano de obra</td><td>${money(b.labor)}</td></tr></table>
  ${b.note?`<div class="notice">${esc(b.note)}</div>`:""}
- <div class="card" style="margin-top:15px;background:#f8fafc"><h3>1. Datos para autorización</h3><div class="grid g2"><div><label>Método de pago *</label><select id="clientPay"><option value="">Seleccione...</option><option>Efectivo</option><option>Tarjeta</option><option>Transferencia</option></select></div><div><label>¿Requiere factura con RTN? *</label><select id="clientRTN" onchange="updateClientApproval()"><option value="">Seleccione...</option><option value="no">No</option><option value="si">Sí</option></select></div></div><div id="clientRtnBox" style="margin-top:10px"></div><div id="clientTotal" class="quote-total" style="margin-top:15px">Total a autorizar: ${money(base)}</div></div>
+ <div class="card" style="margin-top:15px;background:#f8fafc">
+   <h3>1. Datos para autorización</h3>
+   <div class="grid g2">
+     <div><label>Método de pago *</label><select id="clientPay"><option value="">Seleccione...</option><option>Efectivo</option><option>Tarjeta</option><option>Transferencia</option></select></div>
+     <div><label>¿Requiere factura con RTN? *</label><select id="clientRTN" onchange="updateClientApproval()"><option value="">Seleccione...</option><option value="no">No</option><option value="si">Sí</option></select></div>
+   </div>
+   <div id="clientRtnBox" style="margin-top:10px"></div>
+   <div id="clientTotal" class="quote-total hidden" style="margin-top:15px"></div>
+ </div>
  <div class="card" style="margin-top:15px;background:#f8fafc"><h3>💬 ¿Tiene alguna duda?</h3><p>Comuníquese con Servicio al Cliente.</p>${companyWhatsapp()?`<a href="https://wa.me/${companyWhatsapp()}" target="_blank"><button class="secondary">💬 Hablar con Servicio al Cliente</button></a>`:'<div class="warn">El WhatsApp de Servicio al Cliente aún no está configurado.</div>'}</div>
  <h3 style="margin-top:20px">2. ¿Aprueba el presupuesto?</h3>
  <div class="actions"><button class="success" onclick="clientApprove('${o.id}')">✅ SÍ, APRUEBO EL PRESUPUESTO</button><button class="danger" onclick="clientNo('${o.id}')">NO, NO LO APRUEBO</button></div>`
@@ -415,26 +440,131 @@ function publicCard(o){
 function updateClientApproval(){
  const rt=document.getElementById("clientRTN")?.value||"",box=document.getElementById("clientRtnBox"),totalBox=document.getElementById("clientTotal");
  const o=location.hash.startsWith("#presupuesto/")?db.orders.find(x=>x.budget?.token===decodeURIComponent(location.hash.split("/")[1])):null;
- if(box)box.innerHTML=rt==="si"?`<label>RTN del cliente *</label><input id="clientRtnValue" placeholder="Ingrese el RTN">`:"";
- if(o&&totalBox){const isv=rt==="si"?Number(o.budget.labor||0)*.15:0;const total=Number(o.budget.parts||0)+Number(o.budget.materials||0)+Number(o.budget.labor||0)+isv;totalBox.innerHTML=`Total a autorizar: ${money(total)}${isv?`<div class="muted" style="font-size:13px;font-weight:400">Incluye ISV 15% aplicado únicamente a mano de obra.</div>`:""}`}
+ if(!box||!totalBox)return;
+ if(rt==="si"){
+   box.innerHTML=`<div class="card" style="background:#fff;border:1px solid var(--line)">
+     <h3>🧾 Datos de facturación</h3>
+     <label>Nombre / Razón social para la factura *</label>
+     <input id="clientInvoiceName" placeholder="Nombre de la persona o empresa">
+     <label>RTN *</label>
+     <input id="clientRtnValue" placeholder="Ingrese el RTN">
+   </div>`;
+ }else{
+   box.innerHTML="";
+ }
+ if(o&&rt){
+   const isv=rt==="si"?Number(o.budget.labor||0)*.15:0;
+   const total=Number(o.budget.parts||0)+Number(o.budget.materials||0)+Number(o.budget.labor||0)+isv;
+   totalBox.classList.remove("hidden");
+   totalBox.innerHTML=`Total a autorizar: ${money(total)}${isv?`<div class="muted" style="font-size:13px;font-weight:400">Incluye ISV 15% aplicado únicamente a mano de obra.</div>`:""}`;
+ }else{
+   totalBox.classList.add("hidden");
+   totalBox.innerHTML="";
+ }
 }
 function clientApprovalData(o){
  const pay=document.getElementById("clientPay")?.value||"",rt=document.getElementById("clientRTN")?.value||"";
  if(!pay||!rt){alert("Seleccione método de pago y si requiere factura con RTN antes de aprobar.");return null}
- let rtnValue="";if(rt==="si"){rtnValue=document.getElementById("clientRtnValue")?.value.trim()||"";if(!rtnValue){alert("Debe ingresar el RTN para continuar.");return null}}
+ let rtnValue="",invoiceName="";
+ if(rt==="si"){
+   invoiceName=document.getElementById("clientInvoiceName")?.value.trim()||"";
+   rtnValue=document.getElementById("clientRtnValue")?.value.trim()||"";
+   if(!invoiceName||!rtnValue){alert("Debe ingresar nombre/razón social y RTN para la factura.");return null}
+ }
  const isv=rt==="si"?Number(o.budget.labor||0)*.15:0,total=Number(o.budget.parts||0)+Number(o.budget.materials||0)+Number(o.budget.labor||0)+isv;
- return {paymentMethod:pay,requiresRTN:rt==="si",customerRTN:rtnValue,isv,total}
+ return {paymentMethod:pay,requiresRTN:rt==="si",customerRTN:rtnValue,invoiceName,isv,total};
 }
-function clientApprove(id){let o=db.orders.find(x=>x.id===id);if(o.budget.status==="Autorizado")return;const a=clientApprovalData(o);if(!a)return;o.budget={...o.budget,...a,status:"Autorizado",approvedAt:new Date().toISOString(),locked:true};o.status="Autorizado";save();document.body.innerHTML=`<div class="public">${companyHeader()}<div class="card"><h1>✅ Presupuesto autorizado</h1><p>Gracias. El presupuesto, alcance, método de pago y datos de facturación quedan registrados.</p><p><b>Total autorizado:</b> ${money(a.total)}</p></div></div>`}
+function clientApprove(id){
+ let o=db.orders.find(x=>x.id===id);
+ if(o.budget.status==="Autorizado")return;
+ const a=clientApprovalData(o);if(!a)return;
+ o.budget={...o.budget,...a,status:"Autorizado",approvedAt:new Date().toISOString(),locked:true};
+ o.status="Trabajo autorizado - Finalización";
+ o.finalizationPending=true;
+ o.ready=false;
+ save();
+ document.body.innerHTML=`<div class="public">${companyHeader()}<div class="card">
+   <h1>✅ Presupuesto autorizado</h1>
+   <p>Gracias. El presupuesto, alcance, método de pago y datos de facturación quedan registrados.</p>
+   <p><b>Total autorizado:</b> ${money(a.total)}</p>
+   <p class="muted">El vehículo pasa a la etapa de ejecución y finalización del trabajo.</p>
+ </div></div>`;
+}
 function clientNo(id){let o=db.orders.find(x=>x.id===id);if(o.budget.status==="Autorizado")return;o.budget.status="Atencion";o.budget.customerResponse="No aprobado";o.status="Atención al cliente";save();document.body.innerHTML=`<div class="public">${companyHeader()}<div class="card"><h1>✓ Hemos recibido su respuesta</h1><p>Servicio al Cliente revisará el caso y se comunicará con usted para aclarar sus dudas.</p></div></div>`}
 function renderTech(){
  if(role()!=="Técnico")return;
  const os=db.orders.filter(o=>o.technicianId===current.id&&!["Entregado","Cancelado"].includes(o.status));
- techOrders.innerHTML=os.map(o=>{let v=vehicle(o.vehicleId);return `<div class="card"><h3>🚗 ${esc(v.plate)} · ${esc(v.make)} ${esc(v.model)}</h3><p><b>Motivo:</b> ${esc(o.reason)}</p><p><b>Estado:</b> ${status(o.status)}</p><label>Diagnóstico</label><textarea id="diag_${o.id}">${esc(o.diagnosis||"")}</textarea><label>Solicitud de repuesto/material</label><div class="grid g3"><input id="ri_${o.id}" placeholder="Pieza/material"><input id="rq_${o.id}" type="number" value="1" min="1"><input id="rr_${o.id}" placeholder="Motivo"></div><label>Foto de pieza dañada *</label><input id="rp_${o.id}" type="file" accept="image/*"><div class="actions"><button onclick="saveDiagnosis('${o.id}')">💾 Guardar diagnóstico</button><button onclick="requestPart('${o.id}')">📨 Solicitar a Jefe de Pista</button><button class="success" onclick="finishTech('${o.id}')">✓ Marcar trabajo terminado</button></div></div>`}).join("")||'<div class="card">No tenés vehículos asignados.</div>'
+ const solicitud=os.filter(o=>!o.finalizationPending);
+ const final=os.filter(o=>o.finalizationPending && !o.ready);
+
+ const requestHtml=solicitud.map(o=>{
+   let v=vehicle(o.vehicleId);
+   return `<div class="card">
+     <h3>🔧 Solicitud de repuestos · ${esc(v.plate)} · ${esc(v.make)} ${esc(v.model)}</h3>
+     <p><b>Motivo:</b> ${esc(o.reason)}</p><p><b>Estado:</b> ${status(o.status)}</p>
+     <label>Diagnóstico</label><textarea id="diag_${o.id}">${esc(o.diagnosis||"")}</textarea>
+     <label>Solicitud de repuesto/material</label>
+     <div class="grid g3"><input id="ri_${o.id}" placeholder="Pieza/material"><input id="rq_${o.id}" type="number" value="1" min="1"><input id="rr_${o.id}" placeholder="Motivo"></div>
+     <label>📸 Foto de pieza dañada *</label><input id="rp_${o.id}" type="file" accept="image/*">
+     <div class="actions"><button onclick="saveDiagnosis('${o.id}')">💾 Guardar diagnóstico</button><button onclick="requestPart('${o.id}')">📨 Solicitar repuesto</button></div>
+   </div>`;
+ }).join("")||'<div class="card"><div class="muted">No hay solicitudes de repuestos pendientes.</div></div>';
+
+ const finalHtml=final.map(o=>{
+   let v=vehicle(o.vehicleId);
+   return `<div class="card">
+     <h3>✅ Finalización de trabajo · ${esc(v.plate)} · ${esc(v.make)} ${esc(v.model)}</h3>
+     <p>Presupuesto autorizado. Esta ventana es únicamente para documentar lo realizado.</p>
+     <div class="card" style="background:#f8fafc">
+       <h3>Repuestos autorizados</h3>
+       <div>${(o.partRequests||[]).filter(r=>r.status!=="Cancelado").map(r=>`<div class="field"><b>${esc(r.item)}</b> × ${esc(r.qty)}</div>`).join("")||'<div class="muted">Sin repuestos registrados.</div>'}</div>
+     </div>
+     <label>📸 Fotos de repuestos cambiados *</label>
+     <div class="photo-grid" id="finalPhotos_${o.id}">
+       <div class="photo-box"><label>Repuesto 1</label><input type="file" accept="image/*" onchange="previewFinalTechPhoto(this,'fp1_${o.id}')"><div id="fp1_${o.id}" class="photo-empty">Sin foto</div></div>
+       <div class="photo-box"><label>Repuesto 2</label><input type="file" accept="image/*" onchange="previewFinalTechPhoto(this,'fp2_${o.id}')"><div id="fp2_${o.id}" class="photo-empty">Sin foto</div></div>
+       <div class="photo-box"><label>Repuesto 3</label><input type="file" accept="image/*" onchange="previewFinalTechPhoto(this,'fp3_${o.id}')"><div id="fp3_${o.id}" class="photo-empty">Sin foto</div></div>
+       <div class="photo-box"><label>Resultado / tablero</label><input type="file" accept="image/*" onchange="previewFinalTechPhoto(this,'fpd_${o.id}')"><div id="fpd_${o.id}" class="photo-empty">Sin foto</div></div>
+     </div>
+     <label>Observación final</label><textarea id="finalNote_${o.id}" placeholder="Trabajo realizado y pruebas finales."></textarea>
+     <div class="actions"><button class="success" onclick="finishTech('${o.id}')">✓ Dar por terminada la chamba</button></div>
+   </div>`;
+ }).join("")||'<div class="card"><div class="muted">No hay vehículos autorizados esperando finalización.</div></div>';
+
+ techOrders.innerHTML=`
+   <div class="card"><h2>🔧 Solicitud de repuestos</h2><p class="muted">Aquí el técnico diagnostica y solicita repuestos. Cada solicitud lleva su foto de evidencia.</p></div>
+   ${requestHtml}
+   <div class="card" style="margin-top:18px"><h2>📸 Finalización de trabajo</h2><p class="muted">Cuando el cliente autoriza, la orden pasa aquí. Solo se documentan repuestos cambiados, fotos y finalización.</p></div>
+   ${finalHtml}`;
+}
+function previewFinalTechPhoto(inp,id){
+ if(!inp.files?.[0])return;
+ const r=new FileReader();r.onload=e=>document.getElementById(id).innerHTML=`<img class="photo-preview" src="${e.target.result}" alt="Foto final">`;r.readAsDataURL(inp.files[0]);
 }
 function saveDiagnosis(id){let o=db.orders.find(x=>x.id===id);o.diagnosis=document.getElementById("diag_"+id).value;o.status="En diagnóstico";save();alert("Diagnóstico guardado.")}
 function requestPart(id){let o=db.orders.find(x=>x.id===id),item=document.getElementById("ri_"+id).value.trim(),qty=Number(document.getElementById("rq_"+id).value||1),reason=document.getElementById("rr_"+id).value.trim(),file=document.getElementById("rp_"+id);if(!item||!reason||!file.files[0])return alert("La pieza, motivo y foto son obligatorios.");let r=new FileReader();r.onload=e=>{o.partRequests=o.partRequests||[];o.partRequests.push({id:"pr"+Date.now(),item,qty,reason,photo:e.target.result,status:"Pendiente"});o.status="Esperando presupuesto";save();alert("Solicitud enviada al Jefe de Pista.");};r.readAsDataURL(file.files[0])}
-function finishTech(id){let o=db.orders.find(x=>x.id===id);if(o.budget?.status!=="Autorizado")return alert("El trabajo debe tener un presupuesto autorizado antes de finalizar.");o.status="Trabajo terminado";o.ready=true;save();alert("Trabajo terminado y vehículo listo.");}
+function finishTech(id){
+ let o=db().orders.find(x=>x.id===id);
+ if(!o||o.budget?.status!=="Autorizado")return alert("El trabajo debe tener un presupuesto autorizado antes de finalizar.");
+ const ids=["fp1_"+id,"fp2_"+id,"fp3_"+id,"fpd_"+id];
+ const files=ids.map(x=>document.getElementById(x)?.previousElementSibling?.files?.[0]).filter(Boolean);
+ if(!files.length)return alert("Subí al menos una foto de evidencia final antes de dar por terminada la chamba.");
+ const photos=o.finalPhotos||[];
+ let pending=files.length;
+ files.forEach(file=>{
+   const r=new FileReader();
+   r.onload=e=>{photos.push({photo:e.target.result,at:new Date().toISOString()});pending--;if(!pending){
+     o.finalPhotos=photos;
+     o.finalNotes=document.getElementById("finalNote_"+id)?.value.trim()||"";
+     o.status="Trabajo terminado";
+     o.ready=true;
+     o.finalizationPending=false;
+     save();
+     alert("✓ Trabajo terminado. La orden pasó a vehículos listos.");
+     renderTech();
+   }};r.readAsDataURL(file);
+ });
+}
 function createUser(){if(role()!=="Administrador"&&role()!=="Gerente")return;if(!uName.value.trim()||!uUser.value.trim()||!uPass.value)return userMsg.innerHTML='<div class="warn">Completá todos los campos.</div>';if(db.users.some(x=>x.user===uUser.value.trim()))return userMsg.innerHTML='<div class="warn">Ese usuario ya existe.</div>';db.users.push({id:"u"+Date.now(),name:uName.value.trim(),user:uUser.value.trim(),pass:uPass.value,role:uRole.value,active:true});save();userMsg.innerHTML='<div class="ok">✓ Usuario creado.</div>';uName.value=uUser.value=uPass.value=""}
 function renderUsers(){if(!["Administrador","Gerente"].includes(role()))return;userTable.innerHTML=`<table><tr><th>Nombre</th><th>Usuario</th><th>Puesto</th><th>Estado</th><th>Acción</th></tr>${db.users.map(u=>`<tr><td>${esc(u.name)}</td><td>${esc(u.user)}</td><td>${esc(u.role)}</td><td>${u.active?status("Activo"):status("Inactivo")}</td><td>${u.id===current.id?"—":`<button class="secondary" onclick="toggleUser('${u.id}')">${u.active?"Desactivar":"Activar"}</button>`}</td></tr>`).join("")}</table>`}
 function toggleUser(id){let u=db.users.find(x=>x.id===id);u.active=!u.active;save()}
@@ -617,6 +747,133 @@ seedDemo();handleHash();if(location.hash)handleHash();
       const b=document.createElement("button");b.dataset.view="envioCliente";b.textContent="📲 Enviar presupuesto";b.onclick=()=>show("envioCliente");nav.appendChild(b);
     }
   }
+})();
+</script>
+
+
+<script>
+/* V18.3 — final quality control by Jefe de Pista + customer ready link */
+(function(){
+  function escF(v){return String(v??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));}
+  function moneyF(n){return "L "+Number(n||0).toLocaleString("es-HN",{minimumFractionDigits:2,maximumFractionDigits:2});}
+  function getDBF(){
+    for(const k of ["smf_taller_unico_v1","smf_taller_v1","smf_taller_v2"]){
+      try{const d=JSON.parse(localStorage.getItem(k)||"null");if(d)return {key:k,d};}catch(e){}
+    }
+    return {key:"smf_taller_unico_v1",d:{orders:[],clients:{},customers:{},company:{}}};
+  }
+  function readyUrlF(o){
+    const u=new URL(location.href);
+    u.hash="vehiculo-listo="+encodeURIComponent(o.id);
+    return u.toString();
+  }
+  function renderPistaFinal(){
+    const root=document.getElementById("pistaFinalOrders");if(!root)return;
+    const x=getDBF(),orders=(x.d.orders||[]).filter(o=>o.status==="Trabajo terminado" && !o.finalInspection?.approved);
+    if(!orders.length){root.innerHTML='<div class="card"><div class="muted">No hay vehículos esperando evaluación final.</div></div>';return;}
+    root.innerHTML=orders.map(o=>{
+      const c=(x.d.clients||{})[o.plate]||{}, v=o.vehicle||{};
+      return `<div class="card" style="margin-top:14px">
+        <h3>🚗 ${escF(o.plate)} · ${escF(v.make||c.make||"")} ${escF(v.model||c.model||"")} ${escF(v.year||c.year||"")}</h3>
+        <p><b>Cliente:</b> ${escF(c.name||"")} &nbsp; <b>Técnico:</b> ${escF(o.technicianName||o.technicianId||"")}</p>
+        <p><b>Trabajo técnico:</b> ${escF(o.finalNotes||"Sin observaciones")}</p>
+        ${o.finalPhotos?.length?`<div class="photo-grid">${o.finalPhotos.map((p,i)=>`<div class="photo-box"><label>Foto ${i+1}</label><img class="photo-preview" src="${escF(p.photo||p)}"></div>`).join("")}</div>`:""}
+        <div class="card" style="margin-top:14px;background:#f8fafc">
+          <h3>🧪 Inspección superficial</h3>
+          <div class="checks">
+            <label><input type="checkbox" id="fiOil_${o.id}"> Nivel de aceite verificado</label>
+            <label><input type="checkbox" id="fiCool_${o.id}"> Refrigerante verificado</label>
+            <label><input type="checkbox" id="fiBrake_${o.id}"> Líquido de frenos verificado</label>
+            <label><input type="checkbox" id="fiWasher_${o.id}"> Limpiaparabrisas verificado</label>
+            <label><input type="checkbox" id="fiLeaks_${o.id}"> Sin fugas visibles</label>
+            <label><input type="checkbox" id="fiLights_${o.id}"> Luces/testigos revisados</label>
+          </div>
+          <label>Observaciones finales del Jefe de Pista</label>
+          <textarea id="fiNotes_${o.id}" placeholder="Resultado de la revisión y cualquier detalle pendiente."></textarea>
+          <div class="actions">
+            <button class="success" onclick="approveFinalInspection('${o.id}')">✓ Aprobar y notificar vehículo listo</button>
+          </div>
+          <div id="fiMsg_${o.id}"></div>
+        </div>
+      </div>`;
+    }).join("");
+  }
+
+  window.approveFinalInspection=function(id){
+    const x=getDBF(),o=(x.d.orders||[]).find(z=>z.id===id);if(!o)return;
+    const checks=["fiOil_","fiCool_","fiBrake_","fiWasher_","fiLeaks_","fiLights_"];
+    const all=checks.every(p=>document.getElementById(p+id)?.checked);
+    if(!all){
+      document.getElementById("fiMsg_"+id).innerHTML='<div class="notice">Completá la inspección de líquidos, fugas y revisión superficial antes de aprobar.</div>';
+      return;
+    }
+    o.finalInspection={
+      approved:true,
+      approvedAt:new Date().toISOString(),
+      oil:true,coolant:true,brakeFluid:true,washer:true,noVisibleLeaks:true,lights:true,
+      notes:document.getElementById("fiNotes_"+id)?.value.trim()||""
+    };
+    o.status="Vehículo listo";
+    o.ready=true;
+    o.readyNotified=false;
+    localStorage.setItem(x.key,JSON.stringify(x.d));
+
+    const c=(x.d.clients||{})[o.plate]||{};
+    const link=readyUrlF(o);
+    const box=document.getElementById("fiMsg_"+id);
+    box.innerHTML=`<div class="notice">✓ Vehículo aprobado. Ya está <b>listo</b>.<br><br>
+      <b>Enlace para el cliente:</b><br>
+      <input value="${escF(link)}" readonly onclick="this.select()">
+      <div class="actions">
+        <button class="success" onclick="openReadyWhatsApp('${escF(o.id)}')">📲 Notificar al cliente por WhatsApp</button>
+      </div>
+    </div>`;
+    renderPistaFinal();
+  };
+
+  window.openReadyWhatsApp=function(id){
+    const x=getDBF(),o=(x.d.orders||[]).find(z=>z.id===id);if(!o)return;
+    const c=(x.d.clients||{})[o.plate]||{};
+    const phone=String(c.phone||"").replace(/\D/g,"");
+    if(!phone)return alert("El cliente no tiene número de WhatsApp registrado.");
+    const msg=`Hola ${c.name||""}, le informamos que su vehículo ${o.plate} ya está listo. Puede consultar la información de entrega aquí: ${readyUrlF(o)}`;
+    window.open("https://wa.me/"+phone+"?text="+encodeURIComponent(msg),"_blank");
+    o.readyNotified=true;
+    localStorage.setItem(x.key,JSON.stringify(x.d));
+  };
+
+  function publicReadyF(){
+    const m=location.hash.match(/^#vehiculo-listo=(.+)$/);if(!m)return false;
+    const x=getDBF(),o=(x.d.orders||[]).find(z=>z.id===decodeURIComponent(m[1]));
+    if(!o){document.body.innerHTML='<main style="padding:25px;font-family:Arial"><div class="notice">Enlace no válido.</div></main>';return true;}
+    const c=(x.d.clients||{})[o.plate]||{},company=x.d.company||{};
+    document.body.innerHTML=`<main style="padding:24px;background:#f3f4f6;min-height:100vh;font-family:Arial">
+      <div style="max-width:650px;margin:45px auto;background:#fff;border-radius:16px;padding:30px;text-align:center;box-shadow:0 3px 15px #0001">
+        ${company.logo?`<img src="${escF(company.logo)}" style="max-height:70px;max-width:180px">`:''}
+        <div style="font-size:56px;margin-top:10px">🚗✅</div>
+        <h1>Su vehículo está listo</h1>
+        <p style="font-size:17px;color:#4b5563">Hola ${escF(c.name||"")}, su vehículo con placa <b>${escF(o.plate)}</b> ha completado el proceso de taller.</p>
+        <div style="text-align:left;background:#f9fafb;border-radius:12px;padding:16px;margin-top:20px">
+          <p><b>Estado:</b> Vehículo listo para entrega</p>
+          <p><b>Forma de pago registrada:</b> ${escF(o.budget?.paymentMethod||"—")}</p>
+          <p><b>Total autorizado:</b> ${moneyF(o.budget?.total||0)}</p>
+        </div>
+        <p style="margin-top:20px;color:#6b7280">Para coordinar cualquier duda, comuníquese con Servicio al Cliente.</p>
+      </div>
+    </main>`;
+    return true;
+  }
+
+  if(publicReadyF())return;
+
+  const nav=document.getElementById("nav");
+  if(nav&&!nav.querySelector('[data-view="evaluacionPista"]')){
+    const b=document.createElement("button");
+    b.dataset.view="evaluacionPista";b.textContent="🔎 Evaluación final";b.onclick=()=>{show("evaluacionPista");renderPistaFinal();};
+    nav.appendChild(b);
+  }
+  window.addEventListener("hashchange",()=>{});
+  setTimeout(renderPistaFinal,300);
 })();
 </script>
 
