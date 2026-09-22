@@ -177,33 +177,38 @@ h1,h2,h3{margin-top:0}.grid{display:grid;gap:14px}.g2{grid-template-columns:repe
 </section>
 
       <section id="clientes" class="view">
-        <h2>Clientes y vehículos</h2>
-        <div class="card">
-          <h3>🔎 Buscar por placa, nombre, teléfono o RTN</h3>
-          <div class="grid g3"><input id="searchQ" placeholder="Buscar..."><button onclick="searchPeople()">Buscar</button><button class="secondary" onclick="clearPeople()">Limpiar</button></div>
-          <div id="searchResults" style="margin-top:12px"></div>
-        </div>
-        <div class="card">
-          <h3>➕ Registrar cliente y vehículo</h3>
-          <div class="grid g3">
-            <div><label>Tipo</label><select id="cType"><option>Persona</option><option>Empresa</option></select></div>
-            <div><label>Nombre / Razón social *</label><input id="cName"></div>
-            <div><label>Teléfono *</label><input id="cPhone"></div>
-            <div><label>RTN</label><input id="cRTN"></div>
-            <div><label>Placa *</label><input id="cPlate"></div>
-            <div><label>Marca</label><input id="cMake" placeholder="Toyota, Honda..."></div>
-            <div><label>Modelo</label><input id="cModel"></div>
-            <div><label>Año</label><input id="cYear" type="number" min="1980" max="2026"></div>
-            <div><label>Motor</label><input id="cEngine"></div>
-            <div><label>Color</label><input id="cColor"></div>
-            <div><label>Kilometraje</label><input id="cKm" type="number"></div>
-          </div>
-          <div class="actions"><button onclick="saveCustomer()">Guardar cliente/vehículo</button></div>
-          <div id="customerMsg"></div>
-        </div>
-      </section>
-
-      <section id="orden" class="view">
+  <h2>👥 Clientes y vehículos</h2>
+  <p class="muted">La placa identifica al vehículo. El cliente se administra por separado y el historial permanece aunque cambie el propietario.</p>
+  <div class="grid g4">
+    <div class="card kpi"><span class="muted">Clientes registrados</span><strong id="clientCount">0</strong></div>
+    <div class="card kpi"><span class="muted">Vehículos registrados</span><strong id="vehicleCount">0</strong></div>
+    <div class="card kpi"><span class="muted">Vehículos activos</span><strong id="activeVehicleCount">0</strong></div>
+    <div class="card kpi"><span class="muted">Clientes atendidos este mes</span><strong id="monthClientCount">0</strong></div>
+  </div>
+  <div class="card"><h3>🔎 Buscar por placa, nombre, teléfono o RTN</h3>
+    <div class="grid g3"><input id="searchQ" placeholder="Buscar..."><button onclick="searchPeople()">Buscar</button><button class="secondary" onclick="clearPeople()">Limpiar</button></div>
+    <div id="searchResults" style="margin-top:12px"></div>
+  </div>
+  <div id="customerDetail" class="card hidden"></div>
+  <div class="card"><h3>➕ Registrar cliente y vehículo</h3>
+    <div class="grid g3">
+      <div><label>Tipo</label><select id="cType"><option>Persona</option><option>Empresa</option></select></div>
+      <div><label>Nombre / Razón social *</label><input id="cName"></div>
+      <div><label>Teléfono *</label><input id="cPhone"></div>
+      <div><label>RTN</label><input id="cRTN"></div>
+      <div><label>Placa *</label><input id="cPlate"></div>
+      <div><label>Marca</label><input id="cMake" placeholder="Toyota, Honda..."></div>
+      <div><label>Modelo</label><input id="cModel"></div>
+      <div><label>Año</label><input id="cYear" type="number" min="1980" max="2026"></div>
+      <div><label>Motor</label><input id="cEngine"></div>
+      <div><label>Color</label><input id="cColor"></div>
+      <div><label>Kilometraje</label><input id="cKm" type="number"></div>
+    </div>
+    <div class="actions"><button onclick="saveCustomer()">💾 Guardar cliente/vehículo</button></div><div id="customerMsg"></div>
+  </div>
+  <div class="card"><h3>📋 Clientes registrados</h3><div id="customerList"></div></div>
+</section>
+<section id="orden" class="view">
         <h2>Nueva orden / Recepción</h2>
         <div class="notice">📌 Nueva orden es únicamente el ingreso del vehículo. El diagnóstico, solicitudes y presupuesto continúan en <b>Pendientes</b>.</div>
         <div class="card">
@@ -399,39 +404,79 @@ function seedDemo(){
  save();
 }
 function refresh(){
- if(!current)return;
- kCars.textContent=db.vehicles.length;kOpen.textContent=db.orders.filter(o=>!["Entregado","Cancelado"].includes(o.status)).length;
- const pending=db.orders.filter(o=>o.partRequests?.some(r=>r.status!=="Aprobado"&&r.status!=="Completado")||o.budget?.status==="Enviado"||o.budget?.status==="Atencion"||o.ready).length;
- kPending.textContent=pending;
- const sales=db.orders.reduce((s,o)=>s+(o.budget?.status==="Autorizado"?Number(o.budget.total||0):0),0);kSales.textContent=money(sales);
- moneyKpi.style.display=role()==="Gerente"?"block":"none";
- recent.innerHTML=db.orders.slice(-6).reverse().map(o=>`<div class="card" style="margin:7px 0"><b>${esc(vehicle(o.vehicleId)?.plate||"")}</b> · ${esc(o.status)} · ${esc(o.date)}</div>`).join("")||'<div class="muted">Sin actividad.</div>';
- if(document.getElementById("pendingList"))renderPending();
- if(document.getElementById("techOrders"))renderTech();
- if(document.getElementById("budgetArea"))renderBudgets();
- if(role()==="Administrador"||role()==="Gerente")renderUsers();
- if(role()==="Gerente"){renderFinance();renderReports();renderCompany()}
- populateTech();
+  if(!current)return;
+  const openOrders=db.orders.filter(function(o){return !["Entregado","Cancelado"].includes(o.status);});
+  const activeVehicles=db.vehicles.filter(function(v){return v.active!==false;});
+  if(document.getElementById("kCars"))kCars.textContent=activeVehicles.length;
+  if(document.getElementById("kOpen"))kOpen.textContent=openOrders.length;
+  const pending=db.orders.filter(function(o){return (o.partRequests||[]).some(function(r){return r.status!=="Aprobado"&&r.status!=="Completado";})||o.budget?.status==="Enviado"||o.budget?.status==="Atencion"||o.status==="Atención al cliente"||o.ready;}).length;
+  if(document.getElementById("kPending"))kPending.textContent=pending;
+  const sales=db.orders.reduce(function(sum,o){return sum+(o.budget?.status==="Autorizado"?Number(o.budget.total||0):0);},0);
+  if(document.getElementById("kSales"))kSales.textContent=money(sales);
+  if(document.getElementById("kAvgTime"))kAvgTime.textContent="—";
+  const cash=db.orders.filter(function(o){return o.budget?.status==="Autorizado"&&o.budget.paymentMethod==="Efectivo";}).reduce(function(s,o){return s+Number(o.budget.total||0);},0);
+  const card=db.orders.filter(function(o){return o.budget?.status==="Autorizado"&&o.budget.paymentMethod==="Tarjeta";}).reduce(function(s,o){return s+Number(o.budget.total||0);},0);
+  const transfer=db.orders.filter(function(o){return o.budget?.status==="Autorizado"&&o.budget.paymentMethod==="Transferencia";}).reduce(function(s,o){return s+Number(o.budget.total||0);},0);
+  if(document.getElementById("kCash"))kCash.textContent=money(cash);if(document.getElementById("kCard"))kCard.textContent=money(card);if(document.getElementById("kTransfer"))kTransfer.textContent=money(transfer);
+  if(document.getElementById("gerenteIncome"))gerenteIncome.style.display=role()==="Gerente"?"block":"none";
+  if(document.getElementById("recent"))recent.innerHTML=db.orders.slice(-6).reverse().map(function(o){return '<div class="card" style="margin:7px 0"><b>'+esc(vehicle(o.vehicleId)?.plate||"")+"</b> · "+esc(o.status)+" · "+esc(o.date)+"</div>";}).join("")||'<div class="muted">Sin actividad.</div>';
+  if(document.getElementById("pendingList"))renderPending();if(document.getElementById("techOrders"))renderTech();if(document.getElementById("budgetArea"))renderBudgets();
+  if(role()==="Administrador"||role()==="Gerente")renderUsers();
+  if(role()==="Gerente"){renderFinance();renderReports();renderCompany();renderCustomers();}
+  populateTech();
 }
 function customer(id){return db.customers.find(x=>x.id===id)}
 function vehicle(id){return db.vehicles.find(x=>x.id===id)}
 function tech(id){return db.users.find(x=>x.id===id)}
 function status(s){let c=s==="Autorizado"||s==="Completado"||s==="Entregado"?"b-ok":s==="Atencion"||s==="Enviado"||s==="Pendiente"?"b-warn":"b-blue";return `<span class="badge ${c}">${esc(s)}</span>`}
 function saveCustomer(){
- if(!cName.value.trim()||!cPhone.value.trim()||!cPlate.value.trim())return customerMsg.innerHTML='<div class="warn">Nombre, teléfono y placa son obligatorios.</div>';
- if(db.vehicles.some(v=>v.plate.toUpperCase()===cPlate.value.trim().toUpperCase()))return customerMsg.innerHTML='<div class="warn">Esa placa ya existe.</div>';
- const cid="c"+Date.now(),vid="v"+Date.now();db.customers.push({id:cid,type:cType.value,name:cName.value.trim(),phone:cPhone.value.trim(),rtn:cRTN.value.trim()});db.vehicles.push({id:vid,customerId:cid,plate:cPlate.value.trim().toUpperCase(),make:cMake.value.trim(),model:cModel.value.trim(),year:cYear.value,engine:cEngine.value.trim(),color:cColor.value.trim(),km:Number(cKm.value||0)});save();customerMsg.innerHTML='<div class="ok">✓ Cliente y vehículo guardados.</div>'
+  const name=cName.value.trim(),phone=cPhone.value.trim(),plate=cPlate.value.trim().toUpperCase(),type=cType.value,rtn=cRTN.value.trim();
+  if(!name||!phone||!plate)return customerMsg.innerHTML='<div class="warn">Nombre, teléfono y placa son obligatorios.</div>';
+  if(type==="Empresa"&&!rtn)return customerMsg.innerHTML='<div class="warn">Para empresa el RTN es obligatorio.</div>';
+  if(db.vehicles.some(v=>String(v.plate||"").toUpperCase()===plate))return customerMsg.innerHTML='<div class="warn">Esa placa ya existe.</div>';
+  const cid="c"+Date.now(),vid="v"+Date.now();
+  db.customers.push({id:cid,type,name,phone,rtn,active:true,createdAt:new Date().toISOString()});
+  db.vehicles.push({id:vid,customerId:cid,plate,make:cMake.value.trim(),model:cModel.value.trim(),year:cYear.value,engine:cEngine.value.trim(),color:cColor.value.trim(),km:Number(cKm.value||0),active:true,createdAt:new Date().toISOString()});
+  save(); customerMsg.innerHTML='<div class="ok">✓ Cliente y vehículo guardados.</div>';
+  [cName,cPhone,cRTN,cPlate,cMake,cModel,cYear,cEngine,cColor,cKm].forEach(x=>x.value="");
+  renderCustomers();
 }
+
 function searchPeople(){
- const q=searchQ.value.trim().toUpperCase();if(!q){searchResults.innerHTML="";return}
- const vs=db.vehicles.filter(v=>[v.plate,v.make,v.model].some(x=>String(x||"").toUpperCase().includes(q))||(()=>{let c=customer(v.customerId);return c&&[c.name,c.phone,c.rtn].some(x=>String(x||"").toUpperCase().includes(q))})());
- searchResults.innerHTML=vs.length?vs.map(v=>{let c=customer(v.customerId);return `<div class="card"><b>${esc(v.plate)}</b> · ${esc(v.make)} ${esc(v.model)} ${esc(v.year)}<br><span class="muted">${esc(c?.name||"")} · ${esc(c?.phone||"")}</span><div class="actions"><button onclick="openVehicle('${v.id}')">Ver historial</button><button class="secondary" onclick="startReception('${v.id}')">Nueva recepción</button></div></div>`}).join(""):'<div class="warn">No encontramos resultados.</div>'
+  const q=searchQ.value.trim().toUpperCase(); if(!q){searchResults.innerHTML="";return;}
+  const rows=db.vehicles.map(v=>({v:v,c:customer(v.customerId)})).filter(x=>{const c=x.c||{};return [x.v.plate,x.v.make,x.v.model,c.name,c.phone,c.rtn].some(z=>String(z||"").toUpperCase().includes(q));});
+  searchResults.innerHTML=rows.length?rows.map(x=>'<div class="card"><b>🚗 '+esc(x.v.plate)+'</b> · '+esc(x.v.make)+' '+esc(x.v.model)+' '+esc(x.v.year)+'<br><span class="muted">👤 '+esc(x.c?.name||"")+', '+esc(x.c?.phone||"")+(x.c?.rtn?' · RTN '+esc(x.c.rtn):"")+'</span><div class="actions"><button onclick="openCustomer(\''+x.c.id+'\')">👤 Ver cliente</button><button class="secondary" onclick="openVehicle(\''+x.v.id+'\')">🚗 Ver vehículo</button><button class="light" onclick="startReception(\''+x.v.id+'\')">➕ Nueva recepción</button></div></div>').join(""):'<div class="warn">No encontramos resultados.</div>';
 }
-function clearPeople(){searchQ.value="";searchResults.innerHTML=""}
-function openVehicle(id){currentVehicle=vehicle(id);show("historial");historyQ.value=currentVehicle.plate;renderHistory()}
-function renderHistory(){
- const q=historyQ.value.trim().toUpperCase();const vs=db.vehicles.filter(v=>!q||v.plate.toUpperCase().includes(q)||(customer(v.customerId)?.name||"").toUpperCase().includes(q));
- historyList.innerHTML=vs.map(v=>{let c=customer(v.customerId),os=db.orders.filter(o=>o.vehicleId===v.id);return `<div class="card"><h3>🚗 ${esc(v.plate)} · ${esc(v.make)} ${esc(v.model)} ${esc(v.year)}</h3><div class="muted">${esc(c?.name||"")} · ${esc(c?.phone||"")}</div><div class="table-wrap" style="margin-top:10px"><table><tr><th>Fecha</th><th>Trabajo / motivo</th><th>Estado</th><th>Observaciones</th></tr>${os.map(o=>`<tr><td>${esc(o.date)}</td><td>${esc(o.reason||"Trabajo autorizado")}</td><td>${status(o.status)}</td><td>${esc(o.notes||"—")}</td></tr>`).join("")||'<tr><td colspan="4">Sin trabajos registrados.</td></tr>'}</table></div></div>`}).join("")||'<div class="card">Sin resultados.</div>'
+function clearPeople(){searchQ.value="";searchResults.innerHTML="";}
+function openVehicle(id){const v=vehicle(id);if(!v)return;currentVehicle=v;openCustomer(v.customerId);setTimeout(function(){const el=document.getElementById("vehicleDetail_"+id);if(el)el.scrollIntoView({behavior:"smooth",block:"center"});},50);}
+function openCustomer(id){
+  const c=customer(id);if(!c)return;const vs=db.vehicles.filter(v=>v.customerId===id);customerDetail.classList.remove("hidden");
+  customerDetail.innerHTML='<div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap"><div><h3>👤 '+esc(c.name)+'</h3><div class="muted">'+esc(c.type||"Persona")+' · '+esc(c.phone)+(c.rtn?' · RTN '+esc(c.rtn):"")+'</div></div><div class="actions" style="margin-top:0"><button onclick="editCustomer(\''+id+'\')">✏️ Editar cliente</button><button class="secondary" onclick="closeCustomerDetail()">Cerrar</button></div></div><div class="card" style="margin-top:12px"><h3>🚗 Vehículos ('+vs.length+')</h3>'+(vs.length?vs.map(function(v){return customerVehicleCard(c,v);}).join(""):'<div class="muted">Este cliente no tiene vehículos registrados.</div>')+'</div>';
+}
+function customerVehicleCard(c,v){
+  const os=db.orders.filter(function(o){return o.vehicleId===v.id;});
+  return '<div id="vehicleDetail_'+v.id+'" class="card" style="border-left:4px solid '+(v.active===false?"var(--muted)":"var(--brand)")+'"><div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap"><div><h3>🚗 '+esc(v.plate)+'</h3><div>'+esc(v.make)+' '+esc(v.model)+' '+esc(v.year)+' · '+esc(v.engine||"Motor no registrado")+'</div><div class="muted">'+Number(v.km||0).toLocaleString()+' km · '+(v.active===false?"Inactivo":"Activo")+'</div></div><div class="actions" style="margin-top:0"><button onclick="editVehicle(\''+v.id+'\')">✏️ Editar</button><button class="secondary" onclick="openVehicleHistory(\''+v.id+'\')">📋 Historial ('+os.length+')</button><button class="light" onclick="changeVehicleOwner(\''+v.id+'\')">🔄 Propietario</button><button class="'+(v.active===false?"success":"danger")+'" onclick="toggleVehicle(\''+v.id+'\')">'+(v.active===false?"Activar":"Inactivar")+'</button></div></div></div>';
+}
+function closeCustomerDetail(){customerDetail.classList.add("hidden");customerDetail.innerHTML="";}
+function editCustomer(id){
+  const c=customer(id);if(!c)return;
+  customerDetail.innerHTML='<h3>✏️ Editar cliente</h3><div class="grid g3"><div><label>Tipo</label><select id="editCType"><option '+(c.type==="Persona"?"selected":"")+' >Persona</option><option '+(c.type==="Empresa"?"selected":"")+' >Empresa</option></select></div><div><label>Nombre / Razón social *</label><input id="editCName" value="'+esc(c.name)+'"></div><div><label>Teléfono *</label><input id="editCPhone" value="'+esc(c.phone)+'"></div><div><label>RTN</label><input id="editCRTN" value="'+esc(c.rtn||"")+'"></div></div><div class="actions"><button onclick="saveEditedCustomer(\''+id+'\')">💾 Guardar cambios</button><button class="secondary" onclick="openCustomer(\''+id+'\')">Cancelar</button></div>';
+}
+function saveEditedCustomer(id){const c=customer(id);if(!c)return;const name=document.getElementById("editCName").value.trim(),phone=document.getElementById("editCPhone").value.trim(),type=document.getElementById("editCType").value,rtn=document.getElementById("editCRTN").value.trim();if(!name||!phone)return alert("Nombre y teléfono son obligatorios.");if(type==="Empresa"&&!rtn)return alert("Para empresa el RTN es obligatorio.");c.type=type;c.name=name;c.phone=phone;c.rtn=rtn;c.updatedAt=new Date().toISOString();save();openCustomer(id);}
+function editVehicle(id){const v=vehicle(id);if(!v)return;const c=customer(v.customerId);customerDetail.innerHTML='<h3>✏️ Editar vehículo '+esc(v.plate)+'</h3><div class="grid g3"><div><label>Placa *</label><input id="editVPlate" value="'+esc(v.plate)+'"></div><div><label>Marca</label><input id="editVMake" value="'+esc(v.make||"")+'"></div><div><label>Modelo</label><input id="editVModel" value="'+esc(v.model||"")+'"></div><div><label>Año</label><input id="editVYear" type="number" min="1980" max="2026" value="'+esc(v.year||"")+'"></div><div><label>Motor</label><input id="editVEngine" value="'+esc(v.engine||"")+'"></div><div><label>Color</label><input id="editVColor" value="'+esc(v.color||"")+'"></div><div><label>Kilometraje</label><input id="editVKm" type="number" value="'+Number(v.km||0)+'"></div></div><div class="actions"><button onclick="saveEditedVehicle(\''+id+'\')">💾 Guardar cambios</button><button class="secondary" onclick="openCustomer(\''+c.id+'\')">Cancelar</button></div>';}
+function saveEditedVehicle(id){const v=vehicle(id);if(!v)return;const plate=document.getElementById("editVPlate").value.trim().toUpperCase();if(!plate)return alert("La placa es obligatoria.");if(db.vehicles.some(x=>x.id!==id&&String(x.plate||"").toUpperCase()===plate))return alert("Esa placa ya pertenece a otro vehículo.");v.plate=plate;v.make=document.getElementById("editVMake").value.trim();v.model=document.getElementById("editVModel").value.trim();v.year=document.getElementById("editVYear").value;v.engine=document.getElementById("editVEngine").value.trim();v.color=document.getElementById("editVColor").value.trim();v.km=Number(document.getElementById("editVKm").value||0);v.updatedAt=new Date().toISOString();save();openCustomer(v.customerId);}
+function toggleVehicle(id){const v=vehicle(id);if(!v)return;v.active=v.active===false;v.updatedAt=new Date().toISOString();save();openCustomer(v.customerId);}
+function changeVehicleOwner(id){const v=vehicle(id);if(!v)return;const old=customer(v.customerId);const opts=db.customers.filter(function(c){return c.id!==old.id&&c.active!==false;}).map(function(c){return '<option value="'+c.id+'">'+esc(c.name)+' · '+esc(c.phone)+'</option>';}).join("");customerDetail.innerHTML='<h3>🔄 Cambiar propietario · '+esc(v.plate)+'</h3><p class="muted">El historial del vehículo permanece intacto.</p><select id="newOwnerId"><option value="">Seleccione el nuevo propietario...</option>'+opts+'</select><div class="actions"><button onclick="saveVehicleOwner(\''+id+'\')">Guardar propietario</button><button class="secondary" onclick="openCustomer(\''+old.id+'\')">Cancelar</button></div>';}
+function saveVehicleOwner(id){const v=vehicle(id),newOwner=document.getElementById("newOwnerId")?.value;if(!v||!newOwner)return alert("Seleccione el nuevo propietario.");v.customerId=newOwner;v.updatedAt=new Date().toISOString();save();openCustomer(newOwner);}
+function openVehicleHistory(id){const v=vehicle(id);if(!v)return;currentVehicle=v;show("historial");historyQ.value=v.plate;renderHistory();}
+function renderCustomers(){
+  if(!document.getElementById("customerList"))return;
+  const activeCustomers=db.customers.filter(function(c){return c.active!==false;}),activeVehicles=db.vehicles.filter(function(v){return v.active!==false;});
+  clientCount.textContent=db.customers.length;vehicleCount.textContent=db.vehicles.length;activeVehicleCount.textContent=activeVehicles.length;
+  const now=new Date(),month=now.getMonth(),year=now.getFullYear();
+  const ids=new Set(db.orders.filter(function(o){const d=parseOrderDate(o.date);return d&&d.getMonth()===month&&d.getFullYear()===year;}).map(function(o){const v=vehicle(o.vehicleId);return v?v.customerId:null;}).filter(Boolean));
+  monthClientCount.textContent=ids.size;
+  customerList.innerHTML=activeCustomers.length?'<table><tr><th>Cliente</th><th>Teléfono</th><th>RTN</th><th>Vehículos</th><th>Última orden</th><th>Acciones</th></tr>'+activeCustomers.map(function(c){const vs=db.vehicles.filter(function(v){return v.customerId===c.id;}),ods=db.orders.filter(function(o){return vs.some(function(v){return v.id===o.vehicleId;});}).sort(function(x,y){return String(y.date).localeCompare(String(x.date));});return '<tr><td><b>'+esc(c.name)+'</b><br><span class="muted">'+esc(c.type||"Persona")+'</span></td><td>'+esc(c.phone)+'</td><td>'+esc(c.rtn||"—")+'</td><td>'+vs.length+'</td><td>'+esc(ods[0]?.date||"—")+'</td><td><button onclick="openCustomer(\''+c.id+'\')">👁️ Ver</button> <button class="secondary" onclick="editCustomer(\''+c.id+'\')">✏️ Editar</button></td></tr>';}).join("")+'</table>':'<div class="muted">Todavía no hay clientes registrados.</div>';
 }
 function populateTech(){if(!assignTech)return;assignTech.innerHTML=db.users.filter(u=>u.role==="Técnico"&&u.active).map(u=>`<option value="${u.id}">${esc(u.name)}</option>`).join("")}
 function searchReception(){
