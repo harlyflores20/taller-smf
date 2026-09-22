@@ -186,7 +186,28 @@ h1,h2,h3{margin-top:0}.grid{display:grid;gap:14px}.g2{grid-template-columns:repe
         <div class="card"><h3>Resumen por servicio</h3><div id="serviceReport"></div></div>
       </section>
 
-    </main>
+    
+<section id="envioCliente" class="view">
+  <h2>📲 Enviar presupuesto al cliente</h2>
+  <div class="card">
+    <div class="notice">El WhatsApp oficial se toma de Configuración → Empresa. Para esta prueba podés colocar manualmente el WhatsApp del cliente.</div>
+    <div class="grid g2" style="margin-top:14px">
+      <div><label>Placa / orden</label><input id="sendBudgetPlate" placeholder="Ej. HAA1234"></div>
+      <div><label>WhatsApp del cliente (prueba)</label><input id="sendBudgetPhone" placeholder="Ej. 99999999"></div>
+    </div>
+    <div class="actions">
+      <button onclick="previewCustomerBudget()">👁️ Ver presupuesto del cliente</button>
+      <button class="success" onclick="sendCustomerBudgetWhatsApp()">📲 Enviar por WhatsApp</button>
+    </div>
+    <div id="sendBudgetMsg"></div>
+  </div>
+  <div class="card" style="margin-top:16px">
+    <h3>Vista que recibirá el cliente</h3>
+    <div id="customerBudgetPreview" style="background:#f8fafc;border:1px solid var(--line);border-radius:12px;padding:16px">Seleccioná una orden para visualizar.</div>
+  </div>
+</section>
+
+</main>
   </div>
 </div>
 
@@ -450,6 +471,152 @@ seedDemo();handleHash();if(location.hash)handleHash();
     }catch(e){}
   }
   ensureV18_1();
+})();
+</script>
+
+
+<script>
+(function(){
+  function db(){
+    for(const k of ["smf_taller_unico_v1","smf_taller_v1","smf_taller_v2"]){
+      try{const x=localStorage.getItem(k);if(x)return {key:k,d:JSON.parse(x)}}catch(e){}
+    }
+    return {key:"smf_taller_unico_v1",d:{orders:[],clients:{},customers:{},company:{}}};
+  }
+  function esc(v){return String(v??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));}
+  function money2(n){return "L "+Number(n||0).toLocaleString("es-HN",{minimumFractionDigits:2,maximumFractionDigits:2});}
+  function find(plate){
+    const x=db(),p=String(plate||"").toUpperCase();
+    return {key:x.key,d:x.d,o:(x.d.orders||[]).find(o=>String(o.plate||"").toUpperCase()===p),c:(x.d.clients||{})[p]};
+  }
+  function customerUrl(plate){
+    const u=new URL(location.href);u.hash="cliente-presupuesto="+encodeURIComponent(String(plate).toUpperCase());return u.toString();
+  }
+  function budgetHtml(plate){
+    const x=find(plate),o=x.o,c=x.c,d=x.d;
+    if(!o||!c)return '<div class="notice">No encontramos la orden. Verificá la placa.</div>';
+    const company=d.company||d.config||{},owner=(d.customers||{})[c.ownerId]||c;
+    const parts=o.partRequests||[], labor=Number(o.labor||o.manoObra||0), materials=Number(o.materials||o.materiales||0);
+    const partTotal=parts.reduce((s,r)=>s+Number(r.customerTotal||r.price||0),0);
+    const base=Number((typeof totalOrder==="function"?totalOrder(o):o.total)||partTotal+materials+labor);
+    const isv=o.invoiceRTN?labor*.15:0;
+    return `<div style="max-width:760px;margin:auto;font-family:Arial,sans-serif;color:#111827">
+      <div style="text-align:center;border-bottom:1px solid #e5e7eb;padding-bottom:14px">
+        ${company.logo?`<img src="${esc(company.logo)}" style="max-height:70px;max-width:180px">`:''}
+        <h2 style="margin:8px 0 4px">${esc(company.name||"Servicios Múltiples Flores")}</h2>
+        <div class="muted">${esc(company.rtn||"")} · ${esc(company.location||company.address||"")} · WhatsApp ${esc(company.whatsapp||"")}</div>
+      </div>
+      <div class="grid g2" style="margin-top:14px">
+        <div class="field"><span class="muted">Cliente</span><b>${esc(owner.name||"")}</b></div>
+        <div class="field"><span class="muted">Vehículo</span><b>${esc(c.make)} ${esc(c.model)} ${esc(c.year)} · ${esc(c.plate)}</b></div>
+      </div>
+      <div class="card" style="margin-top:14px"><h3>📋 Diagnóstico / trabajo</h3>
+        <p>${esc(o.technician?.diagnosis||o.reception?.reason||"Pendiente de diagnóstico")}</p>
+        ${o.technician?.recommendation?`<p><b>Trabajo recomendado:</b> ${esc(o.technician.recommendation)}</p>`:''}
+      </div>
+      ${parts.length?`<div class="card" style="margin-top:14px"><h3>🔧 Repuestos</h3>${parts.map(r=>`<div class="part-request-card">
+        <div class="part-head"><b>${esc(r.item)}</b><b>${Number(r.qty||1)} ud.</b></div>
+        ${r.photo?`<img class="part-photo" src="${esc(r.photo)}" alt="Evidencia de pieza">`:''}
+        <div style="margin-top:8px">${esc(r.reason||"")}</div>
+        <div style="text-align:right;font-weight:800;margin-top:8px">${money2(r.customerTotal||r.price||0)}</div>
+      </div>`).join("")}</div>`:''}
+      <div class="card" style="margin-top:14px"><h3>💰 Presupuesto</h3>
+        <div class="summary-box">
+          <div>Repuestos<b>${money2(partTotal)}</b></div>
+          <div>Materiales<b>${money2(materials)}</b></div>
+          <div>Mano de obra<b>${money2(labor)}</b></div>
+          ${o.invoiceRTN?`<div>ISV 15% sobre mano de obra<b>${money2(isv)}</b></div>`:''}
+          <div><span class="muted">Total</span><b style="font-size:22px">${money2(base+isv)}</b></div>
+        </div>
+      </div>
+      <div class="card" style="margin-top:14px"><h3>🧾 Autorización</h3>
+        <label>¿Requiere factura con RTN?</label>
+        <select id="custNeedRTN" onchange="document.getElementById('custRTNBox').classList.toggle('hidden',this.value!=='si')"><option value="">Seleccionar</option><option value="no">No</option><option value="si">Sí</option></select>
+        <div id="custRTNBox" class="hidden"><label>RTN</label><input id="custRTN" placeholder="Ingrese RTN"></div>
+        <label>Forma de pago</label>
+        <select id="custPay"><option value="">Seleccionar</option><option>Efectivo</option><option>Tarjeta</option><option>Transferencia</option></select>
+        <div class="actions">
+          <button class="success" onclick="approveCustomerBudget('${esc(plate)}')">✅ Aprobar presupuesto</button>
+          <button class="danger" onclick="rejectCustomerBudget('${esc(plate)}')">❌ No aprobar</button>
+          <button class="secondary" onclick="contactCustomerService()">💬 Hablar con Servicio al Cliente</button>
+        </div>
+        <div id="customerActionMsg"></div>
+      </div>
+    </div>`;
+  }
+  window.previewCustomerBudget=function(){
+    const p=(document.getElementById("sendBudgetPlate")?.value||"").trim().toUpperCase();
+    document.getElementById("customerBudgetPreview").innerHTML=budgetHtml(p);
+  };
+  window.sendCustomerBudgetWhatsApp=function(){
+    const p=(document.getElementById("sendBudgetPlate")?.value||"").trim().toUpperCase();
+    const phone=(document.getElementById("sendBudgetPhone")?.value||"").replace(/\D/g,"");
+    const x=find(p);
+    if(!x.o||!x.c)return document.getElementById("sendBudgetMsg").innerHTML='<div class="notice">Verificá la placa y que exista una orden.</div>';
+    if(!phone)return document.getElementById("sendBudgetMsg").innerHTML='<div class="notice">Para esta prueba, colocá el WhatsApp del cliente.</div>';
+    const text=`Hola ${x.c.name||""}, le compartimos el presupuesto de su vehículo ${p}. Puede revisarlo y autorizarlo aquí: ${customerUrl(p)}`;
+    window.open("https://wa.me/"+phone+"?text="+encodeURIComponent(text),"_blank");
+  };
+  window.approveCustomerBudget=function(p){
+    const x=find(p);if(!x.o)return;
+    const need=document.getElementById("custNeedRTN")?.value;
+    const pay=document.getElementById("custPay")?.value;
+    const rtn=document.getElementById("custRTN")?.value.trim();
+    if(!need||!pay||(need==="si"&&!rtn)){
+      return document.getElementById("customerActionMsg").innerHTML='<div class="notice">Completá RTN si aplica y forma de pago.</div>';
+    }
+
+    /* Customer approval: no WhatsApp is sent. The customer page changes
+       immediately to the authorization confirmation screen. */
+    x.o.invoiceRTN=need==="si";
+    x.o.customerRTN=rtn||"";
+    x.o.paymentMethod=pay;
+    x.o.approved=true;
+    x.o.approvedAt=new Date().toISOString();
+    x.o.budgetLocked=true;
+    x.o.status="Autorizado";
+    localStorage.setItem(x.key,JSON.stringify(x.d));
+
+    document.body.innerHTML=`<main style="padding:24px;background:#f3f4f6;min-height:100vh;font-family:Arial,sans-serif">
+      <div style="max-width:650px;margin:50px auto;background:#fff;border-radius:16px;padding:30px;text-align:center;box-shadow:0 3px 15px #0001">
+        <div style="font-size:58px">✅</div>
+        <h1 style="margin:10px 0">Presupuesto aprobado</h1>
+        <p style="font-size:16px;color:#4b5563">Hemos registrado su autorización correctamente.</p>
+        <div style="text-align:left;background:#f9fafb;border-radius:12px;padding:16px;margin-top:20px">
+          <p><b>Vehículo:</b> ${esc(p)}</p>
+          <p><b>Forma de pago:</b> ${esc(pay)}</p>
+          <p><b>Factura con RTN:</b> ${need==="si"?"Sí":"No"}</p>
+          ${rtn?`<p><b>RTN:</b> ${esc(rtn)}</p>`:""}
+        </div>
+        <p style="margin-top:20px;color:#6b7280">El taller continuará con el proceso autorizado.</p>
+      </div>
+    </main>`;
+  };
+  window.rejectCustomerBudget=function(p){
+    const x=find(p);if(!x.o)return;
+    const company=x.d.company||x.d.config||{};
+    const w=String(company.whatsapp||"").replace(/\D/g,"");
+    const msg=`ATENCIÓN AL CLIENTE%0A%0ACliente: ${x.c.name||""}%0APlaca: ${p}%0AEstado: NO APRUEBA EL PRESUPUESTO%0A%0ASe requiere contacto de Jefe de Pista para atender al cliente.%0AFecha: ${new Date().toLocaleString("es-HN")}`;
+    if(w) window.open("https://wa.me/"+w+"?text="+msg,"_blank");
+    document.getElementById("customerActionMsg").innerHTML='<div class="notice">🟠 <b>Solicitud enviada a Atención al Cliente.</b> Jefe de Pista debe contactar al cliente.</div>';
+    const btns=document.querySelectorAll("#publicBudget button");btns.forEach(b=>b.disabled=true);
+  };
+  window.contactCustomerService=function(){
+    const x=db(),w=String((x.d.company||x.d.config||{}).whatsapp||"").replace(/\D/g,"");
+    if(w)window.open("https://wa.me/"+w+"?text="+encodeURIComponent("Hola, necesito hablar con Servicio al Cliente."),"_blank");
+    else alert("Configurá primero el WhatsApp oficial de la empresa.");
+  };
+  function publicPage(){
+    const m=location.hash.match(/^#cliente-presupuesto=(.+)$/);if(!m)return false;
+    document.body.innerHTML='<main style="padding:20px;background:#f3f4f6;min-height:100vh"><div id="publicBudget"></div></main>';
+    document.getElementById("publicBudget").innerHTML=budgetHtml(decodeURIComponent(m[1]));return true;
+  }
+  if(!publicPage()){
+    const nav=document.getElementById("nav");
+    if(nav&&!nav.querySelector('[data-view="envioCliente"]')){
+      const b=document.createElement("button");b.dataset.view="envioCliente";b.textContent="📲 Enviar presupuesto";b.onclick=()=>show("envioCliente");nav.appendChild(b);
+    }
+  }
 })();
 </script>
 
