@@ -608,13 +608,31 @@ function clearPeople(){searchQ.value="";searchResults.innerHTML="";}
 function openVehicle(id){const v=vehicle(id);if(!v)return;currentVehicle=v;openCustomer(v.customerId);setTimeout(function(){const el=document.getElementById("vehicleDetail_"+id);if(el)el.scrollIntoView({behavior:"smooth",block:"center"});},50);}
 function openCustomer(id){
   const c=customer(id);if(!c)return;const vs=db.vehicles.filter(v=>v.customerId===id);customerDetail.classList.remove("hidden");
-  customerDetail.innerHTML='<div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap"><div><h3>👤 '+esc(c.name)+'</h3><div class="muted">'+esc(c.type||"Persona")+' · '+esc(c.phone)+(c.rtn?' · RTN '+esc(c.rtn):"")+'</div></div><div class="actions" style="margin-top:0"><button onclick="editCustomer(\''+id+'\')">✏️ Editar cliente</button><button class="secondary" onclick="closeCustomerDetail()">Cerrar</button></div></div><div class="card" style="margin-top:12px"><h3>🚗 Vehículos ('+vs.length+')</h3>'+(vs.length?vs.map(function(v){return customerVehicleCard(c,v);}).join(""):'<div class="muted">Este cliente no tiene vehículos registrados.</div>')+'</div>';
+  customerDetail.innerHTML='<div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap"><div><h3>👤 '+esc(c.name)+'</h3><div class="muted">'+esc(c.type||"Persona")+' · '+esc(c.phone)+(c.rtn?' · RTN '+esc(c.rtn):"")+'</div></div><div class="actions" style="margin-top:0"><button onclick="editCustomer(\''+id+'\')">✏️ Editar cliente</button>'+(role()==="Gerente"?'<button class="danger" onclick="deleteCustomer(\''+id+'\')">🗑️ Eliminar cliente</button>':'')+'<button class="secondary" onclick="closeCustomerDetail()">Cerrar</button></div></div><div class="card" style="margin-top:12px"><h3>🚗 Vehículos ('+vs.length+')</h3>'+(vs.length?vs.map(function(v){return customerVehicleCard(c,v);}).join(""):'<div class="muted">Este cliente no tiene vehículos registrados.</div>')+'</div>';
 }
 function customerVehicleCard(c,v){
   const os=db.orders.filter(function(o){return o.vehicleId===v.id;});
   return '<div id="vehicleDetail_'+v.id+'" class="card" style="border-left:4px solid '+(v.active===false?"var(--muted)":"var(--brand)")+'"><div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap"><div><h3>🚗 '+esc(v.plate)+'</h3><div>'+esc(v.make)+' '+esc(v.model)+' '+esc(v.year)+' · '+esc(v.engine||"Motor no registrado")+'</div><div class="muted">'+Number(v.km||0).toLocaleString()+' km · '+(v.active===false?"Inactivo":"Activo")+'</div></div><div class="actions" style="margin-top:0"><button onclick="editVehicle(\''+v.id+'\')">✏️ Editar</button><button class="secondary" onclick="openVehicleHistory(\''+v.id+'\')">📋 Historial ('+os.length+')</button><button class="light" onclick="changeVehicleOwner(\''+v.id+'\')">🔄 Propietario</button><button class="'+(v.active===false?"success":"danger")+'" onclick="toggleVehicle(\''+v.id+'\')">'+(v.active===false?"Activar":"Inactivar")+'</button></div></div></div>';
 }
 function closeCustomerDetail(){customerDetail.classList.add("hidden");customerDetail.innerHTML="";}
+function deleteCustomer(id){
+  if(role()!=="Gerente"){alert("Solo el Gerente puede eliminar clientes.");return;}
+  const c=customer(id);if(!c)return;
+  const vs=db.vehicles.filter(function(v){return v.customerId===id;});
+  const orders=db.orders.filter(function(o){return vs.some(function(v){return v.id===o.vehicleId;});});
+  if(orders.length){
+    alert("Este cliente tiene historial u órdenes asociadas. No se puede eliminar físicamente porque se perdería el historial. Podés inactivarlo para conservar toda la información.");
+    return;
+  }
+  if(!confirm("¿Eliminar definitivamente a "+(c.name||"este cliente")+"?\n\nTambién se eliminarán sus vehículos registrados. Esta acción no se puede deshacer."))return;
+  db.vehicles=db.vehicles.filter(function(v){return v.customerId!==id;});
+  db.customers=db.customers.filter(function(x){return x.id!==id;});
+  save();
+  customerDetail.classList.add("hidden");
+  customerDetail.innerHTML="";
+  renderCustomers();
+}
+
 function editCustomer(id){
   const c=customer(id);if(!c)return;
   customerDetail.innerHTML='<h3>✏️ Editar cliente</h3><div class="grid g3"><div><label>Tipo</label><select id="editCType"><option '+(c.type==="Persona"?"selected":"")+' >Persona</option><option '+(c.type==="Empresa"?"selected":"")+' >Empresa</option></select></div><div><label>Nombre / Razón social *</label><input id="editCName" value="'+esc(c.name)+'"></div><div><label>Teléfono *</label><input id="editCPhone" value="'+esc(c.phone)+'"></div><div><label>RTN</label><input id="editCRTN" value="'+esc(c.rtn||"")+'"></div></div><div class="actions"><button onclick="saveEditedCustomer(\''+id+'\')">💾 Guardar cambios</button><button class="secondary" onclick="openCustomer(\''+id+'\')">Cancelar</button></div>';
@@ -637,7 +655,7 @@ function renderCustomers(){
   const now=new Date(),month=now.getMonth(),year=now.getFullYear();
   const ids=new Set(db.orders.filter(function(o){const d=parseOrderDate(o.date);return d&&d.getMonth()===month&&d.getFullYear()===year;}).map(function(o){const v=vehicle(o.vehicleId);return v?v.customerId:null;}).filter(Boolean));
   monthClientCount.textContent=ids.size;
-  customerList.innerHTML=activeCustomers.length?'<div class="notice" style="margin-bottom:12px">👥 <b>'+activeCustomers.length+'</b> cliente(s) registrados en el sistema · 🚗 <b>'+activeVehicles.length+'</b> vehículo(s) activos.</div><div class="grid g2">'+activeCustomers.map(function(c){const vs=db.vehicles.filter(function(v){return v.customerId===c.id;}),ods=db.orders.filter(function(o){return vs.some(function(v){return v.id===o.vehicleId;});}).sort(function(x,y){return String(y.date).localeCompare(String(x.date));});return '<div class="card" style="margin:0;border-left:4px solid var(--brand)"><h3 style="margin:0 0 6px">👤 '+esc(c.name)+'</h3><div class="muted">'+esc(c.type||"Persona")+' · 📞 '+esc(c.phone||"Sin teléfono")+(c.rtn?' · RTN '+esc(c.rtn):"")+'</div><div style="margin-top:8px">🚗 <b>'+vs.length+'</b> vehículo(s) registrado(s)</div><div class="muted">Última orden: '+esc(ods[0]?.date||"—")+'</div><div class="actions"><button onclick="openCustomer(\''+c.id+'\')">👁️ Ver cliente</button><button class="secondary" onclick="editCustomer(\''+c.id+'\')">✏️ Editar</button></div></div>';}).join("")+'</div>':'<div class="muted">Todavía no hay clientes registrados.</div>';
+  customerList.innerHTML=activeCustomers.length?'<div class="notice" style="margin-bottom:12px">👥 <b>'+activeCustomers.length+'</b> cliente(s) registrados en el sistema · 🚗 <b>'+activeVehicles.length+'</b> vehículo(s) activos.</div><div class="grid g2">'+activeCustomers.map(function(c){const vs=db.vehicles.filter(function(v){return v.customerId===c.id;}),ods=db.orders.filter(function(o){return vs.some(function(v){return v.id===o.vehicleId;});}).sort(function(x,y){return String(y.date).localeCompare(String(x.date));});return '<div class="card" style="margin:0;border-left:4px solid var(--brand)"><h3 style="margin:0 0 6px">👤 '+esc(c.name)+'</h3><div class="muted">'+esc(c.type||"Persona")+' · 📞 '+esc(c.phone||"Sin teléfono")+(c.rtn?' · RTN '+esc(c.rtn):"")+'</div><div style="margin-top:8px">🚗 <b>'+vs.length+'</b> vehículo(s) registrado(s)</div><div class="muted">Última orden: '+esc(ods[0]?.date||"—")+'</div><div class="actions"><button onclick="openCustomer(\''+c.id+'\')">👁️ Ver cliente</button><button class="secondary" onclick="editCustomer(\''+c.id+'\')">✏️ Editar</button>'+(role()==="Gerente"?'<button class="danger" onclick="deleteCustomer(\''+c.id+'\')">🗑️ Eliminar</button>':'')+</div></div>';}).join("")+'</div>':'<div class="muted">Todavía no hay clientes registrados.</div>';
 }
 function populateTech(){
   const el=document.getElementById("assignTech");if(!el)return;
