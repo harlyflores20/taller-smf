@@ -1044,10 +1044,13 @@ function renderPending(){
 function openBudget(id){currentOrder=db.orders.find(o=>o.id===id);show("presupuestos");renderBudgetDetail(id)}
 function renderBudgets(){
  if(!["Gerente","Jefe de Pista"].includes(role())){budgetArea.innerHTML="";return;}
- const list=db.orders.filter(o=>isActiveCustomerForVehicle(vehicle(o.vehicleId))&&(o.budget?.status==="No aprobado"||(o.partRequests||[]).some(r=>r.status==="Pendiente"||r.status==="En presupuesto")));
+ const list=db.orders.filter(function(o){
+   return isActiveCustomerForVehicle(vehicle(o.vehicleId)) &&
+     (o.budget?.status==="No aprobado" || (o.partRequests||[]).some(function(r){return r.status==="Pendiente"||r.status==="En presupuesto";}));
+ });
  budgetArea.innerHTML=list.map(function(o){
-   const v=vehicle(o.vehicleId)||{},c=customer(v.customerId)||{};
-   return '<div class="card" style="margin:10px 0;border-left:4px solid var(--brand)"><div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap"><div><h3 style="margin:0">📋 OT #'+String(o.orderNumber||0).padStart(5,"0")+'</h3><div><b>🚗 '+esc(v.plate||"")+'</b> · 👤 '+esc(c.name||"")+'</div></div><button class="success" onclick="openBudget(&quot;'+o.id+'&quot;)">💰 Realizar cotización</button></div></div>';
+   const v=vehicle(o.vehicleId)||{},c=customer(v.customerId)||{},rejected=o.budget?.status==="No aprobado";
+   return '<div class="card" style="margin:10px 0;border-left:4px solid var(--brand)"><div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap"><div><h3 style="margin:0">📋 OT #'+String(o.orderNumber||0).padStart(5,"0")+'</h3><div><b>🚗 '+esc(v.plate||"")+'</b> · 👤 '+esc(c.name||"")+'</div>'+(rejected?'<div class="warn" style="margin-top:8px">Cliente no aprobó la cotización</div>':"")+'</div><button class="success" onclick="openBudget(&quot;'+o.id+'&quot;)">'+(rejected?"🔄 Revisar cotización":"💰 Realizar cotización")+'</button></div></div>';
  }).join("")||'<div class="card">No hay solicitudes de repuestos pendientes de cotización.</div>';
 }
 function budgetCard(o){
@@ -1057,7 +1060,7 @@ function budgetCard(o){
  const reqs=(o.partRequests||[]).filter(function(r){return r.status!=="Cancelado"&&r.status!=="Devuelta";});
  const reqCards=reqs.map(function(r,i){
    const a=agencyById(r.agencyId);
-   return '<div style="margin:14px 0;padding:14px;border:1px solid var(--line);border-left:4px solid var(--brand);border-radius:10px"><div style="display:flex;justify-content:space-between;gap:10px;align-items:center"><h4 style="margin:0">🔩 Solicitud #'+(i+1)+' · '+esc(r.item)+'</h4><span class="muted">'+esc(r.status||"Pendiente")+'</span></div><p><b>Cantidad:</b> '+esc(r.qty)+' · <b>Motivo:</b> '+esc(r.reason)+'</p>'+(r.photo?'<div><img src="'+r.photo+'" style="max-width:180px;max-height:120px;border-radius:8px;object-fit:cover"></div>':'<div class="muted">Sin foto de pieza.</div>')+'<div class="grid g2" style="margin-top:10px"><div><label>Agencia donde se cotiza *</label><select id="ra_'+o.id+'_'+r.id+'" '+(locked||rejected?"disabled":"")+'><option value="">Seleccione...</option>'+agencyOptions(r.agencyId)+'</select></div><div><label>📄 Fotografía / PDF de cotización</label><input id="rqf_'+o.id+'_'+r.id+'" type="file" accept="image/*,.pdf" '+(locked?"disabled":"")+'></div></div>'+(a?'<div class="muted" style="margin-top:6px">Agencia: '+esc(a.name)+'</div>':'')+'</div>';
+   return '<div style="margin:14px 0;padding:14px;border:1px solid var(--line);border-left:4px solid var(--brand);border-radius:10px"><div style="display:flex;justify-content:space-between;gap:10px;align-items:center"><h4 style="margin:0">🔩 Solicitud #'+(i+1)+' · '+esc(r.item)+'</h4><span class="muted">'+esc(r.status||"Pendiente")+'</span></div><p><b>Cantidad:</b> '+esc(r.qty)+' · <b>Motivo:</b> '+esc(r.reason)+'</p>'+(r.photo?'<div><img src="'+r.photo+'" style="max-width:180px;max-height:120px;border-radius:8px;object-fit:cover"></div>':'<div class="muted">Sin foto de pieza.</div>')+'<div class="grid g2" style="margin-top:10px"><div><label>Agencia donde se cotiza *</label><select id="ra_'+o.id+'_'+r.id+'" '+(locked||rejected?"disabled":"")+'><option value="">Seleccione...</option>'+agencyOptions(r.agencyId)+'</select></div><div><label>📄 Fotografía / PDF de cotización</label><input id="rqf_'+o.id+'_'+r.id+'" type="file" accept="image/*,.pdf" '+(locked||rejected?"disabled":"")+'></div></div>'+(a?'<div class="muted" style="margin-top:6px">Agencia: '+esc(a.name)+'</div>':'')+'</div>';
  }).join("");
  const total=Number(b.parts||0)+Number(b.materials||0)+Number(b.labor||0);
  return '<div class="card">'+
@@ -1070,11 +1073,11 @@ function budgetCard(o){
  '<hr style="margin:18px 0">'+
  '<h3>💵 Cotización al cliente</h3>'+
  '<div class="grid g3">'+
- '<div><label>Repuestos *</label><input id="p_'+o.id+'" type="number" step=".01" value="'+Number(b.parts||0)+'" '+(locked?"disabled":"")+' oninput="updateBudgetTotal(&quot;'+o.id+'&quot;)"></div>'+
- '<div><label>Materiales *</label><input id="m_'+o.id+'" type="number" step=".01" value="'+Number(b.materials||0)+'" '+(locked?"disabled":"")+' oninput="updateBudgetTotal(&quot;'+o.id+'&quot;)"></div>'+
- '<div><label>Mano de obra *</label><input id="l_'+o.id+'" type="number" step=".01" value="'+Number(b.labor||0)+'" '+(locked?"disabled":"")+' oninput="updateBudgetTotal(&quot;'+o.id+'&quot;)"></div>'+
+ '<div><label>Repuestos *</label><input id="p_'+o.id+'" type="number" step=".01" value="'+Number(b.parts||0)+'" '+(locked||rejected?"disabled":"")+' oninput="updateBudgetTotal(&quot;'+o.id+'&quot;)"></div>'+
+ '<div><label>Materiales *</label><input id="m_'+o.id+'" type="number" step=".01" value="'+Number(b.materials||0)+'" '+(locked||rejected?"disabled":"")+' oninput="updateBudgetTotal(&quot;'+o.id+'&quot;)"></div>'+
+ '<div><label>Mano de obra *</label><input id="l_'+o.id+'" type="number" step=".01" value="'+Number(b.labor||0)+'" '+(locked||rejected?"disabled":"")+' oninput="updateBudgetTotal(&quot;'+o.id+'&quot;)"></div>'+
  '</div>'+
- '<label>Nota para el cliente</label><input id="bn_'+o.id+'" value="'+esc(b.note||"")+'" '+(locked?"disabled":"")+'>'+
+ '<label>Nota para el cliente</label><input id="bn_'+o.id+'" value="'+esc(b.note||"")+'" '+(locked||rejected?"disabled":"")+'>'+
  '<div class="quote-total" style="margin-top:12px">Subtotal: <span id="budgetTotal_'+o.id+'">'+money(total)+'</span></div>'+
  (locked?'<div class="ok">🔒 Presupuesto autorizado y bloqueado.</div>':(rejected?'<div class="actions"><button class="success" onclick="modifyBudget(&quot;'+o.id+'&quot;)">🔄 Modificar cotización</button><button class="danger" onclick="clientDidNotProceed(&quot;'+o.id+'&quot;)">🚫 Cliente no realizó trabajo</button></div>':'<div class="actions"><button class="success" onclick="sendBudget(&quot;'+o.id+'&quot;)">📤 Enviar cotización al cliente</button></div>'))+
  '<div id="bm_'+o.id+'"></div></div>';
@@ -1636,14 +1639,16 @@ renderBranding();seedDemo();handleHash();if(location.hash)handleHash();
   };
   window.rejectCustomerBudget=function(p){
     const x=find(p);if(!x.o)return;
-    const company=x.d.company||x.d.config||{};
-    const w=String(company.whatsapp||"").replace(/\D/g,"");
-    const msg=`ATENCIÓN AL CLIENTE%0A%0ACliente: ${x.c.name||""}%0APlaca: ${p}%0AEstado: NO APRUEBA EL PRESUPUESTO%0A%0ASe requiere contacto de Jefe de Pista para atender al cliente.%0AFecha: ${new Date().toLocaleString("es-HN")}`;
-    if(w) window.open("https://wa.me/"+w+"?text="+msg,"_blank");
-    document.getElementById("customerActionMsg").innerHTML='<div class="notice">🟠 <b>Presupuesto no aprobado.</b> Jefe de Pista podrá modificar la cotización o registrar que el cliente no realizará el trabajo.</div>';
+    x.o.approved=false;
+    x.o.budget=x.o.budget||{};
+    x.o.budget.status="No aprobado";
+    x.o.budget.rejectedAt=new Date().toISOString();
+    x.o.status="Cotización no aprobada";
+    localStorage.setItem(x.key,JSON.stringify(x.d));
+    document.getElementById("customerActionMsg").innerHTML='<div class="notice">🟠 <b>Presupuesto no aprobado.</b> El taller revisará la cotización y podrá modificarla o registrar que el cliente no realizará el trabajo.</div>';
     const btns=document.querySelectorAll("#publicBudget button");btns.forEach(b=>b.disabled=true);
   };
-  window.contactCustomerService=function(){
+ window.contactCustomerService=function(){
     const x=db(),w=String((x.d.company||x.d.config||{}).whatsapp||"").replace(/\D/g,"");
     if(w)window.open("https://wa.me/"+w+"?text="+encodeURIComponent("Hola, necesito hablar con Servicio al Cliente."),"_blank");
     else alert("Configurá primero el WhatsApp oficial de la empresa.");
