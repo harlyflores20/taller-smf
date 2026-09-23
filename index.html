@@ -1041,45 +1041,20 @@ function clientNo(id){let o=db.orders.find(x=>x.id===id);if(o.budget.status==="A
 function renderTech(){
  if(!["Técnico","Gerente"].includes(role()))return;
  const os=db.orders.filter(o=>(role()==="Gerente"||o.technicianId===current.id)&&!["Entregado","Cancelado"].includes(o.status));
- const solicitud=os.filter(o=>!o.finalizationPending);
- const final=os.filter(o=>o.finalizationPending && !o.ready);
-
- const requestHtml=solicitud.map(o=>{
-   const v=vehicle(o.vehicleId)||{},c=customer(v.customerId)||{};
-   const reqs=o.partRequests||[];
-   const reqList=reqs.length?'<div class="card" style="background:#f8fafc;margin-top:12px"><b>📋 Solicitudes enviadas</b>'+reqs.map((r,i)=>'<div style="padding:8px 0;border-top:1px solid var(--line);margin-top:6px"><b>#'+(i+1)+' '+esc(r.item)+'</b> × '+esc(r.qty)+' · '+esc(r.type||"Repuesto")+'<br><span class="muted">'+esc(r.reason)+' · Estado: '+esc(r.status||"Pendiente")+'</span></div>').join("")+'</div>':'';
-   return '<div class="card" style="border-left:4px solid var(--brand)">'+
-     '<h3>🔧 OT #'+String(o.orderNumber||0).padStart(5,"0")+' · '+esc(v.plate||"")+'</h3>'+
-     '<p><b>🚗 '+esc(v.make||"")+' '+esc(v.model||"")+' '+esc(v.year||"")+'</b><br>👤 '+esc(c.name||"")+' · KM entrada: '+Number(v.lastReceptionKm||v.km||0).toLocaleString()+'</p>'+
-     '<div class="notice"><b>Motivo indicado por el cliente:</b> '+esc(o.reason||"")+'</div>'+
-     '<p><b>Estado:</b> '+status(o.status)+'</p>'+
-     '<h3>1. Diagnóstico</h3>'+
-     '<label>Diagnóstico / hallazgos *</label><textarea id="diag_'+o.id+'" placeholder="Describí lo encontrado, pruebas realizadas y causa probable...">'+esc(o.diagnosis||"")+'</textarea>'+
-     '<label>Trabajo recomendado</label><textarea id="rec_'+o.id+'" placeholder="Qué trabajo necesita realizarse...">'+esc(o.recommendedWork||"")+'</textarea>'+
-     '<div class="actions"><button onclick="saveDiagnosis(\''+o.id+'\')">💾 Guardar diagnóstico</button></div>'+
-     '<h3 style="margin-top:22px">2. Solicitar repuesto / material</h3>'+
-     '<p class="muted">Cada solicitud se registra por separado y se envía al Jefe de Pista. La foto de evidencia es obligatoria.</p>'+
-     '<div class="grid g3">'+
-       '<div><label>Tipo *</label><select id="rt_'+o.id+'"><option value="Repuesto">Repuesto</option><option value="Material">Material</option></select></div>'+
-       '<div><label>Repuesto / material *</label><input id="ri_'+o.id+'" placeholder="Ej. empaque, aceite, silicón..."></div>'+
-       '<div><label>Cantidad *</label><input id="rq_'+o.id+'" type="number" value="1" min="1" step="1"></div>'+
-     '</div>'+
-     '<label>¿Por qué se necesita? *</label><textarea id="rr_'+o.id+'" placeholder="Explicá el motivo de la solicitud..."></textarea>'+
-     '<label>📸 Foto de la pieza / evidencia *</label><input id="rp_'+o.id+'" type="file" accept="image/*">'+
-     '<div class="actions"><button class="success" onclick="requestPart(\''+o.id+'\')">📨 Enviar solicitud al Jefe de Pista</button></div>'+
-     '<div id="partMsg_'+o.id+'"></div>'+reqList+
-   '</div>';
- }).join("")||'<div class="card"><div class="muted">No tenés órdenes asignadas pendientes de diagnóstico.</div></div>';
-
- const finalHtml=final.map(o=>{
+ const cards=os.map(o=>{
    const v=vehicle(o.vehicleId)||{};
-   return '<div class="card"><h3>OT #'+String(o.orderNumber||0).padStart(5,"0")+' · Finalización de trabajo</h3><p>Esta etapa se habilitará cuando corresponda. Aquí no se modifican precios ni presupuestos.</p></div>';
+   return '<div class="card" style="margin:10px 0;border-left:4px solid var(--brand)"><div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap"><div><h3 style="margin:0">📋 OT #'+String(o.orderNumber||0).padStart(5,"0")+'</h3><div><b>🚗 '+esc(v.plate||"")+'</b> · '+esc(v.make||"")+' '+esc(v.model||"")+' '+esc(v.year||"")+'</div></div><button class="success" onclick="openDiagnosis(\''+o.id+'\')">🔧 Agregar diagnóstico</button></div></div>';
  }).join("");
-
- techOrders.innerHTML=
-   '<div class="card"><h2>🔧 Diagnóstico y solicitudes</h2><p class="muted">Trabajá únicamente las órdenes asignadas a tu usuario. Podés guardar el diagnóstico y enviar múltiples solicitudes individuales de repuestos o materiales.</p></div>'+
-   requestHtml+
-   (final.length?'<div class="card" style="margin-top:18px"><h2>📸 Finalización</h2></div>'+finalHtml:'');
+ techOrders.innerHTML='<div class="card"><h2>🔧 Diagnóstico</h2><p class="muted">Seleccioná una orden para ingresar el diagnóstico y solicitar los repuestos o materiales necesarios.</p></div>'+ (cards||'<div class="card"><div class="muted">No hay órdenes asignadas para diagnóstico.</div></div>');
+}
+function openDiagnosis(id){
+ const o=db.orders.find(x=>x.id===id);if(!o)return;
+ const v=vehicle(o.vehicleId)||{},c=customer(v.customerId)||{};
+ const reqs=o.partRequests||[];
+ const reqList=reqs.length?'<div class="card" style="background:#f8fafc"><h3>📋 Solicitudes realizadas</h3>'+reqs.map((r,i)=>'<div style="padding:8px 0;border-top:1px solid var(--line)"><b>#'+(i+1)+' '+esc(r.item)+'</b> × '+esc(r.qty)+' · '+esc(r.type||"Repuesto")+'<br><span class="muted">'+esc(r.reason)+' · Estado: '+esc(r.status||"Pendiente")+'</span></div>').join("")+'</div>':'';
+ techOrders.innerHTML='<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><div><h2>🔧 Diagnóstico · OT #'+String(o.orderNumber||0).padStart(5,"0")+'</h2><div><b>🚗 '+esc(v.plate||"")+'</b> · '+esc(v.make||"")+' '+esc(v.model||"")+' '+esc(v.year||"")+'</div><div class="muted">👤 '+esc(c.name||"")+' · Motivo: '+esc(o.reason||"")+'</div></div><button class="secondary" onclick="renderTech()">← Volver a órdenes</button></div></div>'+
+ '<div class="card"><h3>1. Diagnóstico</h3><label>Diagnóstico / hallazgos *</label><textarea id="diag_'+o.id+'" placeholder="Describí lo encontrado, pruebas realizadas y causa probable...">'+esc(o.diagnosis||"")+'</textarea><label>Trabajo recomendado</label><textarea id="rec_'+o.id+'" placeholder="Qué trabajo necesita realizarse...">'+esc(o.recommendedWork||"")+'</textarea><div class="actions"><button onclick="saveDiagnosis(\''+o.id+'\')">💾 Guardar diagnóstico</button></div></div>'+
+ '<div class="card"><h3>2. Solicitud de repuestos y materiales</h3><p class="muted">Cada solicitud se registra individualmente. La foto de evidencia es obligatoria.</p><div class="grid g3"><div><label>Tipo *</label><select id="rt_'+o.id+'"><option value="Repuesto">Repuesto</option><option value="Material">Material</option></select></div><div><label>Repuesto / material *</label><input id="ri_'+o.id+'" placeholder="Ej. empaque, aceite, silicón..."></div><div><label>Cantidad *</label><input id="rq_'+o.id+'" type="number" value="1" min="1" step="1"></div></div><label>¿Por qué se necesita? *</label><textarea id="rr_'+o.id+'" placeholder="Explicá el motivo de la solicitud..."></textarea><label>📸 Foto de la pieza / evidencia *</label><input id="rp_'+o.id+'" type="file" accept="image/*"><div class="actions"><button class="success" onclick="requestPart(\''+o.id+'\')">📨 Enviar solicitud al Jefe de Pista</button></div><div id="partMsg_'+o.id+'"></div>'+reqList+'</div>';
 }
 
 function previewFinalTechPhoto(inp,id){
