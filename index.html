@@ -211,6 +211,7 @@ h1,h2,h3{margin-top:0}.grid{display:grid;gap:14px}.g2{grid-template-columns:repe
 <section id="orden" class="view">
         <h2>🚗 Nueva orden / Recepción</h2>
         <div class="notice">📌 Primero identificamos al cliente y al vehículo. Si la placa ya existe, cargamos sus datos e historial. Si es una placa nueva, podemos agregar el vehículo a un cliente existente o crear un cliente nuevo.</div>
+        <div id="orderSuccessNotice" class="ok hidden" style="margin-top:12px;font-size:18px;padding:16px"></div>
 
         <div class="card">
           <h3>1. Identificar cliente y vehículo</h3>
@@ -740,6 +741,7 @@ function startReception(id){
   document.getElementById("receptionPhotos").innerHTML=receptionPhotoSlots().map((x,i)=>'<div class="photo-box"><label>'+x+' *</label><input type="file" accept="image/*" onchange="photoPreview(this,\'rp'+i+'\')"><div id="rp'+i+'" class="photo-empty">Sin foto</div></div>').join("");
   ["deliverer","delivererPhone","reason","condition","receptionNotes","objectsNote"].forEach(id=>{const el=document.getElementById(id);if(el)el.value="";});
   ["fuel","dash","tools","keys"].forEach(id=>{const el=document.getElementById(id);if(el)el.checked=false;});
+  const success=document.getElementById("orderSuccessNotice");if(success){success.classList.add("hidden");success.innerHTML="";}
   const om=document.getElementById("orderMsg");if(om)om.innerHTML="";
   form.scrollIntoView({behavior:"smooth",block:"start"});
 }
@@ -810,7 +812,13 @@ async function createOrder(){
   db.orders.push(order);
   save();
   currentOrder=order;
-  orderMsg.innerHTML='<div class="ok">✓ <b>Orden de Trabajo #'+String(orderNumber).padStart(5,"0")+'</b> creada y registrada en Historial.</div><div class="actions"><button onclick="show(\'historial\')">📋 Ver orden en Historial</button></div>';
+  const success=document.getElementById("orderSuccessNotice");
+  if(success){
+    success.classList.remove("hidden");
+    success.innerHTML='✓ <b>¡Orden de Trabajo creada con éxito!</b><br>OT #'+String(orderNumber).padStart(5,"0")+' · '+esc(currentVehicle.plate)+' · Vehículo recibido y técnico asignado.';
+  }
+  const om=document.getElementById("orderMsg");
+  if(om)om.innerHTML='<div class="ok">✓ Orden de Trabajo #'+String(orderNumber).padStart(5,"0")+' creada con éxito.</div>';
   document.getElementById("receptionForm").scrollIntoView({behavior:"smooth",block:"center"});
 }
 
