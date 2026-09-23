@@ -1076,7 +1076,24 @@ seedDemo();handleHash();if(location.hash)handleHash();
     w.document.write('<h1>SMF Taller</h1><h2>Clientes registrados</h2><p>Fecha: '+new Date().toLocaleDateString("es-HN")+' · Total: '+rows.length+'</p>');
     w.document.write('<table><thead><tr><th>Tipo</th><th>Cliente / Razón social</th><th>Teléfono</th><th>RTN</th><th>Vehículos</th><th>Cant.</th><th>Estado</th></tr></thead><tbody>');
     rows.forEach(r=>w.document.write('<tr><td>'+escX(r.tipo)+'</td><td>'+escX(r.nombre)+'</td><td>'+escX(r.telefono)+'</td><td>'+escX(r.rtn||"—")+'</td><td>'+escX(r.vehiculos||"—")+'</td><td>'+r.cantidad+'</td><td>'+escX(r.estado)+'</td></tr>'));
-    w.document.write('</tbody></table><p style="margin-top:25px">SMF Taller · Servicios Múltiples Flores</p>
+    w.document.write('</tbody></table><p style="margin-top:25px">SMF Taller · Servicios Múltiples Flores</p>');
+    w.document.close();
+    w.focus();
+    setTimeout(()=>w.print(),350);
+  };
+  const oldRefresh=window.refresh;
+  window.refresh=function(){
+    if(typeof oldRefresh==="function")oldRefresh();
+    setTimeout(ensureExportButtons,50);
+  };
+  setTimeout(ensureExportButtons,500);
+  document.addEventListener("click",e=>{
+    if(e.target.closest('[data-view="clientes"]'))setTimeout(ensureExportButtons,100);
+  });
+})();
+</script>
+
+
 <script>
 /* V18.5 — clientes: listado visible y persistencia inmediata */
 (function(){
@@ -1092,23 +1109,6 @@ seedDemo();handleHash();if(location.hash)handleHash();
     },80);
   };
   setTimeout(function(){if(typeof renderCustomers==="function")renderCustomers();},700);
-})();
-</script>
-
-</body></html>');
-    w.document.close();
-    w.focus();
-    setTimeout(()=>w.print(),350);
-  };
-  const oldRefresh=window.refresh;
-  window.refresh=function(){
-    if(typeof oldRefresh==="function")oldRefresh();
-    setTimeout(ensureExportButtons,50);
-  };
-  setTimeout(ensureExportButtons,500);
-  document.addEventListener("click",e=>{
-    if(e.target.closest('[data-view="clientes"]'))setTimeout(ensureExportButtons,100);
-  });
 })();
 </script>
 
