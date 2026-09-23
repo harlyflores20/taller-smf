@@ -705,19 +705,32 @@ function createCustomerForReception(){
 }
 
 function startReception(id){
-  currentVehicle=vehicle(id);if(!currentVehicle)return;
+  const v=vehicle(id);
+  if(!v){
+    const msg=document.getElementById("rMatches");
+    if(msg)msg.innerHTML='<div class="warn">No se pudo cargar el vehículo seleccionado.</div>';
+    return;
+  }
+  window.currentVehicle=v;
   closeNewReceptionPanels();
-  show("orden");
-  const c=customer(currentVehicle.customerId)||{};
-  rMatches.innerHTML='<div class="ok">✓ Seleccionado: <b>'+esc(currentVehicle.plate)+'</b> · '+esc(c.name||"")+' · '+esc(currentVehicle.make||"")+' '+esc(currentVehicle.model||"")+' '+esc(currentVehicle.year||"")+'</div>';
-  receptionForm.classList.remove("hidden");
-  document.getElementById("selectedReceptionVehicle").innerHTML='<b>🚗 '+esc(currentVehicle.plate)+'</b> · '+esc(currentVehicle.make||"")+' '+esc(currentVehicle.model||"")+' '+esc(currentVehicle.year||"")+'<br>👤 '+esc(c.name||"")+' · '+esc(c.phone||"")+(c.rtn?' · RTN '+esc(c.rtn):"");
-  receptionKm.value=Number(currentVehicle.km||0);
-  receptionPhotos.innerHTML=receptionPhotoSlots().map((x,i)=>'<div class="photo-box"><label>'+x+' *</label><input type="file" accept="image/*" onchange="photoPreview(this,\'rp'+i+'\')"><div id="rp'+i+'" class="photo-empty">Sin foto</div></div>').join("");
-  ["deliverer","delivererPhone","reason","condition","receptionNotes","objectsNote"].forEach(id=>document.getElementById(id).value="");
-  ["fuel","dash","tools","keys"].forEach(id=>document.getElementById(id).checked=false);
-  orderMsg.innerHTML="";
-  document.getElementById("receptionForm").scrollIntoView({behavior:"smooth",block:"start"});
+  const ordenView=document.getElementById("orden");
+  if(ordenView){
+    document.querySelectorAll(".view").forEach(el=>el.classList.remove("active"));
+    ordenView.classList.add("active");
+  }
+  const c=customer(v.customerId)||{};
+  const matches=document.getElementById("rMatches");
+  if(matches)matches.innerHTML='<div class="ok">✓ Vehículo seleccionado: <b>'+esc(v.plate)+'</b> · '+esc(c.name||"")+' · '+esc(v.make||"")+' '+esc(v.model||"")+' '+esc(v.year||"")+'</div>';
+  const form=document.getElementById("receptionForm");
+  if(!form)return;
+  form.classList.remove("hidden");
+  document.getElementById("selectedReceptionVehicle").innerHTML='<b>🚗 '+esc(v.plate)+'</b> · '+esc(v.make||"")+' '+esc(v.model||"")+' '+esc(v.year||"")+'<br>👤 '+esc(c.name||"")+' · '+esc(c.phone||"")+(c.rtn?' · RTN '+esc(c.rtn):"");
+  document.getElementById("receptionKm").value=Number(v.km||0);
+  document.getElementById("receptionPhotos").innerHTML=receptionPhotoSlots().map((x,i)=>'<div class="photo-box"><label>'+x+' *</label><input type="file" accept="image/*" onchange="photoPreview(this,\'rp'+i+'\')"><div id="rp'+i+'" class="photo-empty">Sin foto</div></div>').join("");
+  ["deliverer","delivererPhone","reason","condition","receptionNotes","objectsNote"].forEach(id=>{const el=document.getElementById(id);if(el)el.value="";});
+  ["fuel","dash","tools","keys"].forEach(id=>{const el=document.getElementById(id);if(el)el.checked=false;});
+  const om=document.getElementById("orderMsg");if(om)om.innerHTML="";
+  form.scrollIntoView({behavior:"smooth",block:"start"});
 }
 
 function photoPreview(inp,id){
