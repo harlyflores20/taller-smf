@@ -1043,7 +1043,7 @@ function renderPending(){
  if(role()==="Técnico"){pendingList.innerHTML="";return}
  const rows=[];
  db.orders.forEach(o=>{
-   if(o.diagnosisOnly||o.status==="Diagnóstico pendiente de cobro"||o.budget?.status==="No realizado"||o.status==="Vehículo listo"||o.ready===true)return;
+   if(o.diagnosisOnly||o.status==="Diagnóstico pendiente de cobro"||o.budget?.status==="No realizado"||o.status==="Vehículo listo"||o.status==="Listo para cobro"||o.status==="Entregado"||o.ready===true)return;
    let v=vehicle(o.vehicleId),c=customer(v?.customerId);
    (o.partRequests||[]).filter(r=>!["Aprobado","Completado","Cancelado","Devuelta","En presupuesto"].includes(r.status)).forEach(r=>rows.push(`<div class="card pending"><h3>🔧 Solicitud de repuesto</h3><b>OT #${String(o.orderNumber||0).padStart(5,"0")} · ${esc(v?.plate)} · ${esc(c?.name||"")}</b><p><b>${esc(r.item)}</b> × ${esc(r.qty)}<br>${esc(r.reason)}</p><button onclick="openBudget('${o.id}')">Abrir solicitud</button></div>`));
    if(o.budget?.status==="Enviado"||o.status==="Esperando aprobación")rows.push(`<div class="card pending" style="border-left:4px solid #d97706"><h3>🟡 OT #${String(o.orderNumber||0).padStart(5,"0")} · Esperando aprobación</h3><b>🚗 ${esc(v?.plate||"")} · 👤 ${esc(c?.name||"")}</b><p>La cotización fue enviada al cliente. La Orden de Trabajo permanece en <b>Pendientes</b> mientras esperamos su respuesta.</p><button onclick="openBudget('${o.id}')">Ver presupuesto</button></div>`);
