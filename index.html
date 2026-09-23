@@ -1480,7 +1480,13 @@ function renderCobro(){
 }
 function returnToNotificar(id){
  const o=db.orders.find(function(x){return x.id===id;});if(!o||o.status!=="Listo para cobro")return;
- o.status="Pendiente de notificar finalización";
+ /*
+  * Al regresar desde Cobro, la OT debe quedar exactamente en la etapa
+  * anterior a la notificación. Usamos "Trabajo terminado" porque esa es
+  * la condición principal que consume la ventana Notificar finalización.
+  * Así no depende de estados intermedios ni de una inspección anterior.
+  */
+ o.status="Trabajo terminado";
  o.ready=false;
  o.readyNotified=false;
  o.finalizationPending=false;
@@ -1490,7 +1496,7 @@ function returnToNotificar(id){
  show("notificarFinalizacion");
  renderNotificarFinalizacion();
  renderCobro();
- alert("✓ La OT regresó a Notificar finalización para volver a probar el envío de WhatsApp.");
+ alert("✓ La OT regresó a Notificar finalización.");
 }
 function confirmCobro(id){
  const o=db.orders.find(function(x){return x.id===id;});if(!o||o.status!=="Listo para cobro")return;
