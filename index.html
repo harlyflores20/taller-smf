@@ -456,8 +456,16 @@ if(!db.users||!db.users.length)db.users=defaultUsers;
 if(!db.users.some(u=>u.id==="tec1")){db.users.push({id:"tec1",name:"Técnico1",user:"tecnico1",pass:"tecnico1123",role:"Técnico",active:true});localStorage.setItem(KEY,JSON.stringify(db));}
 if(!db.company)db.company={name:"Servicios Múltiples Flores",rtn:"",location:"",phone:"",whatsapp:"",logo:"",agencies:[]};
 if(!Array.isArray(db.orders))db.orders=[];
-/* Recuperación de etapa: OTs terminadas sin inspección final vuelven a Notificar finalización. */
-db.orders.forEach(function(o){if(o.status==="Trabajo terminado"&&!o.finalInspection?.approved&&!o.paidAt)o.workflowStage="notificarFinalizacion";});
+/* Recuperación universal de etapa: cada OT conserva una etapa única para evitar que desaparezca entre ventanas. */
+db.orders.forEach(function(o){
+  if(o.paidAt||o.status==="Entregado"){o.workflowStage="historial";return;}
+  if(o.status==="Listo para cobro"){o.workflowStage="cobro";return;}
+  if(o.finalInspection?.approved||o.status==="Pendiente de notificar finalización"||o.status==="Trabajo terminado"){o.workflowStage="notificarFinalizacion";return;}
+  if(o.budget?.status==="Autorizado"||o.status==="Trabajo autorizado - Finalización"){o.workflowStage="evidencia";return;}
+  if(o.budget?.status==="Enviado"||o.budget?.status==="No aprobado"||o.status==="Esperando aprobación"||o.status==="Cotización no aprobada"){o.workflowStage="pendientes";return;}
+  if((o.partRequests||[]).some(function(r){return r.status==="Pendiente"||r.status==="En presupuesto";})||o.status==="Esperando presupuesto"||o.status==="En cotización"){o.workflowStage="presupuesto";return;}
+  o.workflowStage=o.workflowStage||"diagnostico";
+});
 localStorage.setItem(KEY,JSON.stringify(db));
 /* Normalizar numeración de OT: las órdenes antiguas sin número válido reciben un consecutivo. */
 (function normalizeWorkOrderNumbers(){
@@ -992,7 +1000,8 @@ async function createOrder(){
     partRequests:[],
     budget:null,
     notes:"",
-    ready:false
+    ready:false,
+    workflowStage:"diagnostico"
   };
   db.orders.push(order);
   save();
@@ -1118,6 +1127,7 @@ function returnToDiagnosis(id){
  (o.partRequests||[]).filter(function(r){return r.status!=="Cancelado";}).forEach(function(r){r.status="Devuelta";});
  o.budget={parts:0,materials:0,labor:0,status:"Devuelto a diagnóstico",note:""};
  o.status="En diagnóstico";
+ o.workflowStage="diagnostico";
  o.finalizationPending=false;
  o.ready=false;
  save();
@@ -1151,7 +1161,7 @@ function sendBudget(id){
  if(missing)return alert("Completá la agencia y adjuntá la cotización de cada repuesto antes de enviarla al cliente.");
  const finishSend=function(){
    const b={...(o.budget||{}),...getBudgetForm(id),status:"Enviado",sentAt:new Date().toISOString(),token:"smf-"+id+"-"+Date.now()};
-   o.budget=b;o.status="Esperando aprobación";save();
+   o.budget=b;o.status="Esperando aprobación";o.workflowStage="pendientes";save();
    const v=vehicle(o.vehicleId),c=customer(v.customerId),base=location.href.split("#")[0],link=base+"#presupuesto/"+encodeURIComponent(b.token);
    const msg=(db.company.name||"SMF Taller")+" · Presupuesto de "+v.plate+". Revíselo y seleccione sus opciones de facturación y pago para autorizarlo: "+link;
    const wa=(c.phone||"").replace(/\D/g,"");
@@ -1175,6 +1185,7 @@ function modifyBudget(id){
  o.budget.status="Borrador";
  o.budget.modifiedAt=new Date().toISOString();
  o.status="En cotización";
+ o.workflowStage="presupuesto";
  if(o.notification)o.notification.unread=false;
  save();
  renderBudgetDetail(id);
@@ -1183,6 +1194,7 @@ function clientDidNotProceed(id){
  const o=db.orders.find(function(x){return x.id===id;});if(!o)return;
  if(!confirm("¿Confirmar que el cliente no realizará el trabajo cotizado? La orden pasará a Entrega para cobrar únicamente el diagnóstico realizado."))return;
  o.status="Diagnóstico pendiente de cobro";
+ o.workflowStage="notificarFinalizacion";
  o.diagnosisOnly=true;
  o.budget=o.budget||{};
  o.budget.status="No realizado";
@@ -1331,6 +1343,7 @@ function clientApprove(id){
  const a=clientApprovalData(o);if(!a)return;
  o.budget={...o.budget,...a,status:"Autorizado",approvedAt:new Date().toISOString(),locked:true};
  o.status="Trabajo autorizado - Finalización";
+ o.workflowStage="evidencia";
  o.finalizationPending=true;
  o.ready=false;
  save();
@@ -1348,6 +1361,7 @@ function clientNo(id){
  o.budget.customerResponse="No aprobado";
  o.budget.rejectedAt=new Date().toISOString();
  o.status="Cotización no aprobada";
+ o.workflowStage="pendientes";
  o.notification={type:"presupuesto_no_aprobado",unread:true,createdAt:new Date().toISOString(),message:"El cliente no aprobó la cotización. Dar seguimiento en Pendientes."};
  save();
  document.body.innerHTML=`<div class="public">${companyHeader()}<div class="card"><h1>✓ Hemos recibido su respuesta</h1><p>El taller recibió su respuesta. Servicio al Cliente revisará la cotización y se comunicará con usted.</p></div></div>`
@@ -1508,14 +1522,14 @@ function confirmCobro(id){
  const o=db.orders.find(function(x){return x.id===id;});if(!o||o.status!=="Listo para cobro")return;
  const b=o.budget||{},total=Number(b.total||o.diagnosisCharge||0);
  if(total<=0)return alert("La orden no tiene un total válido para cobrar.");
- o.paidAt=new Date().toISOString();o.paid=true;o.status="Entregado";o.ready=false;o.deliveredAt=o.paidAt;o.paymentReceived=total;
+ o.paidAt=new Date().toISOString();o.paid=true;o.status="Entregado";o.workflowStage="historial";o.ready=false;o.deliveredAt=o.paidAt;o.paymentReceived=total;
  save();alert("✓ Cobro registrado. La OT pasó a Historial.");renderCobro();renderHistory();
 }
 function saveDiagnosisCharge(id){
  const o=db.orders.find(function(x){return x.id===id;});if(!o||!o.diagnosisOnly)return;
  const amount=Number(document.getElementById("diagCharge_"+id)?.value||0);if(amount<=0)return alert("Ingrese un precio válido para el diagnóstico.");
  o.diagnosisCharge=amount;o.budget=o.budget||{};o.budget.parts=0;o.budget.materials=0;o.budget.labor=amount;o.budget.total=amount;
- o.status="Pendiente de notificar finalización";o.ready=false;o.diagnosisOnly=true;o.diagnosisChargeSavedAt=new Date().toISOString();save();renderNotificarFinalizacion();
+ o.status="Pendiente de notificar finalización";o.workflowStage="notificarFinalizacion";o.ready=false;o.diagnosisOnly=true;o.diagnosisChargeSavedAt=new Date().toISOString();save();renderNotificarFinalizacion();
 }
 function renderTech(){
  if(!["Técnico","Gerente"].includes(role()))return;
@@ -1579,6 +1593,7 @@ function requestPart(id){
      requestedAt:new Date().toISOString()
    });
    o.status="Esperando presupuesto";
+   o.workflowStage="presupuesto";
    save();
    if(msg)msg.innerHTML='<div class="ok">✓ Diagnóstico guardado y solicitud enviada al Jefe de Pista.</div>';
    document.getElementById("ri_"+id).value="";
@@ -1594,7 +1609,7 @@ function requestPart(id){
  if(!["Devuelta","Pendiente"].includes(r.status))return alert("Esta solicitud ya está en cotización y no se puede eliminar desde Diagnóstico.");
  if(!confirm("¿Eliminar esta solicitud de repuesto/material?"))return;
  o.partRequests=(o.partRequests||[]).filter(function(x){return x.id!==requestId;});
- if((o.partRequests||[]).length===0)o.status="En diagnóstico";
+ if((o.partRequests||[]).length===0){o.status="En diagnóstico";o.workflowStage="diagnostico";}
  save();
  openDiagnosis(orderId);
 }
