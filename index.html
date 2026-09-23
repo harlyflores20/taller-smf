@@ -1014,7 +1014,10 @@ function renderHistory(){
   }).slice().sort((a,b)=>Number(b.orderNumber||0)-Number(a.orderNumber||0));
   el.innerHTML=rows.length?rows.map(o=>{
     const v=vehicle(o.vehicleId)||{},c=customer(v.customerId)||{},t=tech(o.technicianId)||{};
-    return '<div class="card" style="margin:10px 0;border-left:4px solid var(--brand)"><div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap"><div><h3 style="margin:0">📋 OT #'+String(o.orderNumber||0).padStart(5,"0")+'</h3><div><b>🚗 '+esc(v.plate||"")+'</b> · '+esc(v.make||"")+' '+esc(v.model||"")+' '+esc(v.year||"")+'</div><div class="muted">👤 '+esc(c.name||"")+' · Técnico: '+esc(t.name||"No asignado")+'</div></div><div>'+status(o.status)+'</div></div><p style="margin-bottom:0"><b>Fecha:</b> '+esc(o.date||"")+' · <b>Motivo:</b> '+esc(o.reason||"")+'</p></div>';
+    const approved=o.budget?.status==="Autorizado";
+    const reqs=approved?(o.partRequests||[]).filter(function(r){return !["Cancelado","Devuelta"].includes(r.status);}):[];
+    const partsHtml=approved&&reqs.length?'<div class="card" style="margin-top:10px;background:#f8fafc"><b>🔩 Repuestos / materiales autorizados</b>'+reqs.map(function(r){return '<div style="padding:5px 0;border-top:1px solid var(--line)">'+esc(r.item||"")+' × '+esc(r.qty||1)+' · '+esc(r.type||"Repuesto")+'</div>';}).join("")+'</div>':'';
+    return '<div class="card" style="margin:10px 0;border-left:4px solid var(--brand)"><div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap"><div><h3 style="margin:0">📋 OT #'+String(o.orderNumber||0).padStart(5,"0")+'</h3><div><b>🚗 '+esc(v.plate||"")+'</b> · '+esc(v.make||"")+' '+esc(v.model||"")+' '+esc(v.year||"")+'</div><div class="muted">👤 '+esc(c.name||"")+' · Técnico: '+esc(t.name||"No asignado")+'</div></div><div>'+status(o.status)+'</div></div><p style="margin-bottom:0"><b>Fecha:</b> '+esc(o.date||"")+' · <b>Motivo:</b> '+esc(o.reason||"")+'</p>'+partsHtml+'</div>';
   }).join(""):'<div class="card"><div class="muted">No hay órdenes de trabajo registradas.</div></div>';
 }
 function renderTechOverview(){
@@ -1034,7 +1037,7 @@ function renderPending(){
  const rows=[];
  db.orders.forEach(o=>{
    let v=vehicle(o.vehicleId),c=customer(v?.customerId);
-   (o.partRequests||[]).filter(r=>r.status!=="Aprobado"&&r.status!=="Completado").forEach(r=>rows.push(`<div class="card pending"><h3>🔧 Solicitud de repuesto</h3><b>${esc(v?.plate)} · ${esc(c?.name||"")}</b><p><b>${esc(r.item)}</b> × ${esc(r.qty)}<br>${esc(r.reason)}</p><button onclick="openBudget('${o.id}')">Abrir solicitud</button></div>`));
+   (o.partRequests||[]).filter(r=>!["Aprobado","Completado","Cancelado","Devuelta"].includes(r.status)).forEach(r=>rows.push(`<div class="card pending"><h3>🔧 Solicitud de repuesto</h3><b>${esc(v?.plate)} · ${esc(c?.name||"")}</b><p><b>${esc(r.item)}</b> × ${esc(r.qty)}<br>${esc(r.reason)}</p><button onclick="openBudget('${o.id}')">Abrir solicitud</button></div>`));
    if(o.budget?.status==="Enviado")rows.push(`<div class="card pending"><h3>🟡 Presupuesto esperando aprobación</h3><b>${esc(v?.plate)}</b><p>Enviado al cliente.</p><button onclick="openBudget('${o.id}')">Ver presupuesto</button></div>`);
    if(o.budget?.status==="Atencion")rows.push(`<div class="card pending"><h3>🟠 Atención al cliente</h3><b>${esc(v?.plate)}</b><p>El cliente indicó que no aprueba el presupuesto. Contactar para aclarar la situación.</p><button onclick="openBudget('${o.id}')">Atender caso</button></div>`);
    if(o.ready)rows.push(`<div class="card pending"><h3>🚗 Vehículo listo</h3><b>${esc(v?.plate)}</b><p>Trabajo terminado. Listo para cobro/entrega.</p></div>`);
@@ -1351,8 +1354,8 @@ function requestPart(id){
  const r=(o.partRequests||[]).find(function(x){return x.id===requestId;});if(!r)return;
  if(!["Devuelta","Pendiente"].includes(r.status))return alert("Esta solicitud ya está en cotización y no se puede eliminar desde Diagnóstico.");
  if(!confirm("¿Eliminar esta solicitud de repuesto/material?"))return;
- r.status="Cancelado";
- if((o.partRequests||[]).every(function(x){return x.status==="Cancelado"}))o.status="En diagnóstico";
+ o.partRequests=(o.partRequests||[]).filter(function(x){return x.id!==requestId;});
+ if((o.partRequests||[]).length===0)o.status="En diagnóstico";
  save();
  openDiagnosis(orderId);
 }
