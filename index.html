@@ -1465,9 +1465,15 @@ function renderCobro(){
  const orders=db.orders.filter(function(o){return isActiveCustomerForVehicle(vehicle(o.vehicleId))&&o.status==="Listo para cobro"&&!o.paidAt;});
  const cards=orders.map(function(o){
   const v=vehicle(o.vehicleId)||{},c=customer(v.customerId)||{},b=o.budget||{},total=Number(b.total||o.diagnosisCharge||0);
-  return '<div class="card" style="margin:10px 0;border-left:4px solid #16a34a"><div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap"><div><h3 style="margin:0">💰 OT #'+String(o.orderNumber||0).padStart(5,"0")+'</h3><div><b>🚗 '+esc(v.plate||"")+'</b> · '+esc(v.make||"")+' '+esc(v.model||"")+' '+esc(v.year||"")+'</div><div class="muted">👤 '+esc(c.name||"")+'</div></div><div style="font-size:22px;font-weight:900">'+money(total)+'</div></div><div class="card" style="margin-top:12px;background:#f8fafc"><div class="grid g2"><div><b>Forma de pago seleccionada:</b><div>'+esc(b.paymentMethod||o.paymentMethod||"No registrada")+'</div></div><div><b>Factura con RTN:</b><div>'+((o.invoiceRTN||b.requiresRTN||o.customerRTN)?"Sí":"No")+'</div></div></div><div style="margin-top:10px"><b>RTN:</b> '+esc(o.customerRTN||b.customerRTN||"—")+'</div></div><div class="actions"><button class="success" onclick="confirmCobro(\''+o.id+'\')">💵 Confirmar cobro</button></div></div>';
+  return '<div class="card" style="margin:10px 0;border-left:4px solid #16a34a"><div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap"><div><h3 style="margin:0">💰 OT #'+String(o.orderNumber||0).padStart(5,"0")+'</h3><div><b>🚗 '+esc(v.plate||"")+'</b> · '+esc(v.make||"")+' '+esc(v.model||"")+' '+esc(v.year||"")+'</div><div class="muted">👤 '+esc(c.name||"")+'</div></div><div style="font-size:22px;font-weight:900">'+money(total)+'</div></div><div class="card" style="margin-top:12px;background:#f8fafc"><div class="grid g2"><div><b>Forma de pago seleccionada:</b><div>'+esc(b.paymentMethod||o.paymentMethod||"No registrada")+'</div></div><div><b>Factura con RTN:</b><div>'+((o.invoiceRTN||b.requiresRTN||o.customerRTN)?"Sí":"No")+'</div></div></div><div style="margin-top:10px"><b>RTN:</b> '+esc(o.customerRTN||b.customerRTN||"—")+'</div></div><div class="actions"><button class="secondary" onclick="returnToNotificar(\''+o.id+'\')">↩ Regresar a Notificar</button><button class="success" onclick="confirmCobro(\''+o.id+'\')">💵 Confirmar cobro</button></div></div>';
  }).join("");
  root.innerHTML=cards||'<div class="card"><div class="muted">No hay vehículos pendientes de cobro.</div></div>';
+}
+function returnToNotificar(id){
+ const o=db.orders.find(function(x){return x.id===id;});if(!o||o.status!=="Listo para cobro")return;
+ o.status="Pendiente de notificar finalización";o.ready=false;o.readyNotified=false;delete o.readyNotifiedAt;
+ save();renderCobro();renderNotificarFinalizacion();
+ alert("✓ La OT regresó a Notificar finalización para volver a probar el envío de WhatsApp.");
 }
 function confirmCobro(id){
  const o=db.orders.find(function(x){return x.id===id;});if(!o||o.status!=="Listo para cobro")return;
