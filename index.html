@@ -1115,8 +1115,11 @@ function returnToDiagnosis(id){
  (o.partRequests||[]).filter(function(r){return r.status!=="Cancelado";}).forEach(function(r){r.status="Devuelta";});
  o.budget={parts:0,materials:0,labor:0,status:"Devuelto a diagnóstico",note:""};
  o.status="En diagnóstico";
+ o.finalizationPending=false;
+ o.ready=false;
  save();
- renderBudgets();
+ show("tecnico");
+ renderTech();
 }
 
 function savePartRequest(orderId,requestId){
@@ -1477,8 +1480,16 @@ function renderCobro(){
 }
 function returnToNotificar(id){
  const o=db.orders.find(function(x){return x.id===id;});if(!o||o.status!=="Listo para cobro")return;
- o.status="Pendiente de notificar finalización";o.ready=false;o.readyNotified=false;delete o.readyNotifiedAt;
- save();renderCobro();renderNotificarFinalizacion();
+ o.status="Pendiente de notificar finalización";
+ o.ready=false;
+ o.readyNotified=false;
+ o.finalizationPending=false;
+ delete o.readyNotifiedAt;
+ delete o.finalInspection;
+ save();
+ show("notificarFinalizacion");
+ renderNotificarFinalizacion();
+ renderCobro();
  alert("✓ La OT regresó a Notificar finalización para volver a probar el envío de WhatsApp.");
 }
 function confirmCobro(id){
