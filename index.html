@@ -1213,15 +1213,6 @@ function publicCard(o){
      (r.photo?'<img class="part-photo" src="'+esc(r.photo)+'" alt="Pieza dañada">':'')+
      '<div class="muted" style="margin-top:6px">'+esc(r.reason||"")+'</div>'+
    '</div>';}).join("")+'</div>':'')+
-   '<div class="card"><h3>💰 Presupuesto para autorización</h3>'+
-     '<table><tr><th>Concepto</th><th>Valor</th></tr>'+
-       '<tr><td>Repuestos</td><td><span class="client-price-pending">Pendiente de selección de RTN</span></td></tr>'+
-       '<tr><td>Materiales</td><td><span class="client-price-pending">Pendiente de selección de RTN</span></td></tr>'+
-       '<tr><td>Mano de obra</td><td><span class="client-price-pending">Pendiente de selección de RTN</span></td></tr>'+
-     '</table>'+
-     '<div id="clientBudgetPrices" class="notice" style="margin-top:12px">Seleccione primero si requiere factura con RTN para mostrar el precio final.</div>'+
-     (b.note?'<div class="notice">'+esc(b.note)+'</div>':'')+
-   '</div>'+
    '<div class="card" style="margin-top:15px;background:#f8fafc">'+
      '<h3>1. Datos para autorización</h3>'+
      '<div class="grid g2">'+
@@ -1229,6 +1220,10 @@ function publicCard(o){
        '<div><label>¿Requiere factura con RTN? *</label><select id="clientRTN" onchange="updateClientApproval()"><option value="">Seleccione...</option><option value="no">No</option><option value="si">Sí</option></select></div>'+
      '</div>'+
      '<div id="clientRtnBox" style="margin-top:10px"></div>'+
+     '<div id="clientBudgetPrices" class="card hidden" style="margin-top:15px;background:#fff">'+
+       '<h3>💰 Presupuesto para autorización</h3>'+
+       '<div id="clientBudgetPriceTable"></div>'+
+     '</div>'+
      '<div id="clientTotal" class="quote-total hidden" style="margin-top:15px"></div>'+
    '</div>'+
    '<div class="card" style="margin-top:15px;background:#f8fafc"><h3>💬 ¿Tiene alguna duda?</h3><p>Comuníquese con Servicio al Cliente.</p>'+ (companyWhatsapp()?'<a href="https://wa.me/'+companyWhatsapp()+'" target="_blank"><button class="secondary">💬 Hablar con Servicio al Cliente</button></a>':'<div class="warn">El WhatsApp de Servicio al Cliente aún no está configurado.</div>')+'</div>'+
@@ -1257,14 +1252,24 @@ function updateClientApproval(){
    const materials=Number(o.budget.materials||0)*factor;
    const labor=Number(o.budget.labor||0)*factor;
    const total=parts+materials+labor;
-   if(priceBox)priceBox.innerHTML='<div style="font-weight:800">Precios del presupuesto</div>'+
-     '<div style="margin-top:8px">Repuestos: <b>'+money(parts)+'</b></div>'+
-     '<div>Materiales: <b>'+money(materials)+'</b></div>'+
-     '<div>Mano de obra: <b>'+money(labor)+'</b></div>';
+   if(priceBox){
+     priceBox.classList.remove("hidden");
+     const table=document.getElementById("clientBudgetPriceTable");
+     if(table)table.innerHTML='<table style="width:100%;border-collapse:collapse">'+
+       '<tr><th style="text-align:left;padding:8px 0">Concepto</th><th style="text-align:right;padding:8px 0">Valor</th></tr>'+
+       '<tr><td style="padding:8px 0;border-top:1px solid var(--line)">Repuestos</td><td style="padding:8px 0;border-top:1px solid var(--line);text-align:right"><b>'+money(parts)+'</b></td></tr>'+
+       '<tr><td style="padding:8px 0;border-top:1px solid var(--line)">Materiales</td><td style="padding:8px 0;border-top:1px solid var(--line);text-align:right"><b>'+money(materials)+'</b></td></tr>'+
+       '<tr><td style="padding:8px 0;border-top:1px solid var(--line)">Mano de obra</td><td style="padding:8px 0;border-top:1px solid var(--line);text-align:right"><b>'+money(labor)+'</b></td></tr>'+
+       '</table>';
+   }
    totalBox.classList.remove("hidden");
    totalBox.innerHTML=`Total a autorizar: ${money(total)}`;
  }else{
-   if(priceBox)priceBox.innerHTML='Seleccione primero si requiere factura con RTN para mostrar el precio final.';
+   if(priceBox){
+     priceBox.classList.add("hidden");
+     const table=document.getElementById("clientBudgetPriceTable");
+     if(table)table.innerHTML="";
+   }
    totalBox.classList.add("hidden");
    totalBox.innerHTML="";
  }
