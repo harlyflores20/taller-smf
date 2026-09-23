@@ -1417,13 +1417,48 @@ function closeNotificarFinalizacion(){document.getElementById("notificarModal")?
 function confirmNotificarFinalizacion(id){
  const o=db.orders.find(function(x){return x.id===id;});if(!o)return;
  const prefixes=["nfOil_","nfCool_","nfBrake_","nfWasher_","nfLeaks_","nfLights_","nfBody_","nfClean_","nfKeys_"];
- if(!prefixes.every(function(p){return document.getElementById(p+id)?.checked;})){const m=document.getElementById("nfMsg_"+id);if(m)m.innerHTML='<div class="notice">Completá toda la revisión antes de notificar al cliente.</div>';return;}
- o.finalInspection={approved:true,approvedAt:new Date().toISOString(),oil:true,coolant:true,brakeFluid:true,washer:true,noVisibleLeaks:true,lights:true,exterior:true,clean:true,keys:true,notes:document.getElementById("nfNotes_"+id)?.value.trim()||""};
- o.status="Listo para cobro";o.ready=true;o.readyNotified=false;
- save();closeNotificarFinalizacion();renderNotificarFinalizacion();
+ if(!prefixes.every(function(p){return document.getElementById(p+id)?.checked;})){
+   const m=document.getElementById("nfMsg_"+id);if(m)m.innerHTML='<div class="notice">Completá toda la revisión antes de notificar al cliente.</div>';return;
+ }
+ const v=vehicle(o.vehicleId)||{},c=customer(v.customerId)||{};
+ const phone=String(c.phone||"").replace(/\D/g,"");
+ if(!phone){
+   const m=document.getElementById("nfMsg_"+id);if(m)m.innerHTML='<div class="notice">Este cliente no tiene un número de teléfono registrado. Agregá el teléfono del cliente antes de enviar la notificación.</div>';return;
+ }
+ o.finalInspection={
+   approved:true,approvedAt:new Date().toISOString(),
+   oil:true,coolant:true,brakeFluid:true,washer:true,noVisibleLeaks:true,lights:true,exterior:true,clean:true,keys:true,
+   notes:document.getElementById("nfNotes_"+id)?.value.trim()||""
+ };
+ o.status="Pendiente de notificar finalización";
+ o.ready=false;
+ o.readyNotified=false;
+ save();
+ closeNotificarFinalizacion();
+
+ const msg="Hola "+(c.name||"")+", le informamos que su vehículo "+(v.plate||"")+" ya está listo. Puede consultar la información aquí: "+readyUrlF(o);
+ const modal=document.createElement("div");
+ modal.id="whatsappNotifyModal";
+ modal.style.cssText="position:fixed;inset:0;background:#0008;display:flex;align-items:center;justify-content:center;padding:16px;z-index:10000";
+ modal.innerHTML='<div class="card" style="width:min(560px,96vw);margin:0"><h2 style="margin-top:0">📲 Notificar al cliente</h2><div class="notice"><b>OT #'+String(o.orderNumber||0).padStart(5,"0")+' · '+esc(v.plate||"")+'</b><br>Cliente: '+esc(c.name||"")+'<br>WhatsApp: '+esc(c.phone||"")+'</div><label>Mensaje que se enviará</label><textarea id="waReadyMsg_'+id+'" style="min-height:120px">'+esc(msg)+'</textarea><div class="actions"><button class="secondary" onclick="closeWhatsappNotify()">Cancelar</button><button class="success" onclick="sendReadyWhatsApp(\''+o.id+'\')">📲 Enviar por WhatsApp</button></div><div class="muted" style="margin-top:10px">Después de enviar la notificación, la OT pasará automáticamente a Cobro.</div></div>';
+ document.body.appendChild(modal);
+}
+function closeWhatsappNotify(){document.getElementById("whatsappNotifyModal")?.remove();}
+function sendReadyWhatsApp(id){
+ const o=db.orders.find(function(x){return x.id===id;});if(!o)return;
  const v=vehicle(o.vehicleId)||{},c=customer(v.customerId)||{},phone=String(c.phone||"").replace(/\D/g,"");
- if(phone){const msg="Hola "+(c.name||"")+", le informamos que su vehículo "+(v.plate||"")+" ya está listo. Puede consultar la información aquí: "+readyUrlF(o);window.open("https://wa.me/"+phone+"?text="+encodeURIComponent(msg),"_blank");o.readyNotified=true;save();}
- else alert("✓ Vehículo listo para cobro. El cliente no tiene WhatsApp registrado, por lo que no se pudo abrir la notificación.");
+ if(!phone)return alert("El cliente no tiene un número de WhatsApp válido.");
+ const msg=document.getElementById("waReadyMsg_"+id)?.value.trim();
+ if(!msg)return alert("El mensaje no puede estar vacío.");
+ window.open("https://wa.me/"+phone+"?text="+encodeURIComponent(msg),"_blank");
+ o.status="Listo para cobro";
+ o.ready=true;
+ o.readyNotified=true;
+ o.readyNotifiedAt=new Date().toISOString();
+ save();
+ closeWhatsappNotify();
+ renderNotificarFinalizacion();
+ renderCobro();
 }
 function renderCobro(){
  const root=document.getElementById("cobroArea");if(!root||!["Gerente","Jefe de Pista"].includes(role()))return;
