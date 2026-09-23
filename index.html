@@ -197,9 +197,9 @@ h1,h2,h3{margin-top:0}.grid{display:grid;gap:14px}.g2{grid-template-columns:repe
       <div><label>Teléfono *</label><input id="cPhone"></div>
       <div><label>RTN</label><input id="cRTN"></div>
       <div><label>Placa *</label><input id="cPlate"></div>
-      <div><label>Marca</label><input id="cMake" placeholder="Toyota, Honda..."></div>
-      <div><label>Modelo</label><input id="cModel"></div>
-      <div><label>Año</label><input id="cYear" type="number" min="1980" max="2026"></div>
+      <div><label>Marca</label><select id="cMake" onchange="populateVehicleModels('cMake','cModel','cYear')"><option value="">Seleccione marca...</option><option value="Toyota">Toyota</option><option value="Honda">Honda</option><option value="Nissan">Nissan</option><option value="Hyundai">Hyundai</option><option value="Kia">Kia</option><option value="Ford">Ford</option><option value="Chevrolet">Chevrolet</option><option value="Mitsubishi">Mitsubishi</option><option value="Mazda">Mazda</option><option value="Volkswagen">Volkswagen</option><option value="Subaru">Subaru</option><option value="Suzuki">Suzuki</option><option value="Jeep">Jeep</option><option value="Dodge">Dodge</option><option value="Ram">Ram</option><option value="BMW">BMW</option><option value="Mercedes-Benz">Mercedes-Benz</option><option value="Audi">Audi</option><option value="Volvo">Volvo</option><option value="Renault">Renault</option><option value="Peugeot">Peugeot</option><option value="Isuzu">Isuzu</option><option value="Changan">Changan</option><option value="MG">MG</option><option value="Great Wall">Great Wall</option><option value="JAC">JAC</option><option value="BYD">BYD</option></select></div>
+      <div><label>Modelo</label><select id="cModel" onchange="populateVehicleYears('cMake','cModel','cYear')" disabled><option value="">Seleccione modelo...</option></select></div>
+      <div><label>Año</label><select id="cYear" disabled><option value="">Seleccione año...</option></select></div>
       <div><label>Motor</label><input id="cEngine"></div>
       <div><label>Color</label><input id="cColor"></div>
       <div><label>Kilometraje</label><input id="cKm" type="number"></div>
@@ -227,9 +227,9 @@ h1,h2,h3{margin-top:0}.grid{display:grid;gap:14px}.g2{grid-template-columns:repe
           <div id="newVehicleCustomerInfo" class="notice"></div>
           <div class="grid g3">
             <div><label>Placa *</label><input id="nvPlate"></div>
-            <div><label>Marca</label><input id="nvMake" placeholder="Toyota, Honda..."></div>
-            <div><label>Modelo</label><input id="nvModel"></div>
-            <div><label>Año</label><input id="nvYear" type="number" min="1980" max="2026"></div>
+            <div><label>Marca</label><select id="nvMake" onchange="populateVehicleModels('nvMake','nvModel','nvYear')"><option value="">Seleccione marca...</option><option value="Toyota">Toyota</option><option value="Honda">Honda</option><option value="Nissan">Nissan</option><option value="Hyundai">Hyundai</option><option value="Kia">Kia</option><option value="Ford">Ford</option><option value="Chevrolet">Chevrolet</option><option value="Mitsubishi">Mitsubishi</option><option value="Mazda">Mazda</option><option value="Volkswagen">Volkswagen</option><option value="Subaru">Subaru</option><option value="Suzuki">Suzuki</option><option value="Jeep">Jeep</option><option value="Dodge">Dodge</option><option value="Ram">Ram</option><option value="BMW">BMW</option><option value="Mercedes-Benz">Mercedes-Benz</option><option value="Audi">Audi</option><option value="Volvo">Volvo</option><option value="Renault">Renault</option><option value="Peugeot">Peugeot</option><option value="Isuzu">Isuzu</option><option value="Changan">Changan</option><option value="MG">MG</option><option value="Great Wall">Great Wall</option><option value="JAC">JAC</option><option value="BYD">BYD</option></select></div>
+            <div><label>Modelo</label><select id="nvModel" onchange="populateVehicleYears('nvMake','nvModel','nvYear')" disabled><option value="">Seleccione modelo...</option></select></div>
+            <div><label>Año</label><select id="nvYear" disabled><option value="">Seleccione año...</option></select></div>
             <div><label>Motor</label><input id="nvEngine"></div>
             <div><label>Color</label><input id="nvColor"></div>
             <div><label>Kilometraje actual</label><input id="nvKm" type="number"></div>
@@ -249,9 +249,9 @@ h1,h2,h3{margin-top:0}.grid{display:grid;gap:14px}.g2{grid-template-columns:repe
             <div><label>Teléfono *</label><input id="nrPhone"></div>
             <div><label>RTN</label><input id="nrRTN"></div>
             <div><label>Placa *</label><input id="nrPlate"></div>
-            <div><label>Marca</label><input id="nrMake" placeholder="Toyota, Honda..."></div>
-            <div><label>Modelo</label><input id="nrModel"></div>
-            <div><label>Año</label><input id="nrYear" type="number" min="1980" max="2026"></div>
+            <div><label>Marca</label><select id="nrMake" onchange="populateVehicleModels('nrMake','nrModel','nrYear')"><option value="">Seleccione marca...</option><option value="Toyota">Toyota</option><option value="Honda">Honda</option><option value="Nissan">Nissan</option><option value="Hyundai">Hyundai</option><option value="Kia">Kia</option><option value="Ford">Ford</option><option value="Chevrolet">Chevrolet</option><option value="Mitsubishi">Mitsubishi</option><option value="Mazda">Mazda</option><option value="Volkswagen">Volkswagen</option><option value="Subaru">Subaru</option><option value="Suzuki">Suzuki</option><option value="Jeep">Jeep</option><option value="Dodge">Dodge</option><option value="Ram">Ram</option><option value="BMW">BMW</option><option value="Mercedes-Benz">Mercedes-Benz</option><option value="Audi">Audi</option><option value="Volvo">Volvo</option><option value="Renault">Renault</option><option value="Peugeot">Peugeot</option><option value="Isuzu">Isuzu</option><option value="Changan">Changan</option><option value="MG">MG</option><option value="Great Wall">Great Wall</option><option value="JAC">JAC</option><option value="BYD">BYD</option></select></div>
+            <div><label>Modelo</label><select id="nrModel" onchange="populateVehicleYears('nrMake','nrModel','nrYear')" disabled><option value="">Seleccione modelo...</option></select></div>
+            <div><label>Año</label><select id="nrYear" disabled><option value="">Seleccione año...</option></select></div>
             <div><label>Motor</label><input id="nrEngine"></div>
             <div><label>Color</label><input id="nrColor"></div>
             <div><label>Kilometraje actual</label><input id="nrKm" type="number"></div>
@@ -438,6 +438,47 @@ if(typeof db.company.logo!=="string")db.company.logo="";
 let current=null,currentVehicle=null,currentOrder=null;
 const money=n=>"L "+Number(n||0).toLocaleString("es-HN",{minimumFractionDigits:2,maximumFractionDigits:2});
 const esc=s=>String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
+const vehicleCatalog={
+Toyota:[["4Runner",1990,2026],["Camry",1983,2026],["Corolla",1983,2026],["Corolla Cross",2022,2026],["Fortuner",2005,2026],["Hiace",1989,2026],["Hilux",1989,2026],["Land Cruiser",1980,2026],["Prado",1990,2026],["RAV4",1996,2026],["Rush",2018,2026],["Tacoma",1995,2026],["Tundra",2000,2026],["Yaris",1999,2026]],
+Honda:[["Accord",1980,2026],["Civic",1980,2026],["CR-V",1997,2026],["Fit",2001,2020],["HR-V",2015,2026],["Odyssey",1995,2026],["Pilot",2003,2026],["Ridgeline",2006,2026]],
+Nissan:[["Altima",1993,2026],["Frontier",1998,2026],["Kicks",2018,2026],["March",1993,2026],["Maxima",1980,2023],["Murano",2003,2026],["NP300",2015,2026],["Pathfinder",1987,2026],["Sentra",1982,2026],["Tiida",2004,2018],["Versa",2007,2026],["X-Trail",2001,2026]],
+Hyundai:[["Accent",1995,2026],["Elantra",1991,2026],["Santa Fe",2001,2026],["Sonata",1989,2026],["Tucson",2005,2026],["Staria",2021,2026],["Kona",2018,2026],["Creta",2016,2026],["Porter",1990,2026]],
+Kia:[["Carens",1999,2022],["Carnival",1998,2026],["Forte",2010,2026],["Rio",2001,2026],["Sorento",2003,2026],["Soul",2010,2025],["Sportage",1995,2026],["Seltos",2020,2026]],
+Ford:[["EcoSport",2003,2022],["Escape",2001,2026],["Explorer",1991,2026],["F-150",1980,2026],["Maverick",2022,2026],["Ranger",1983,2026],["Bronco",2021,2026],["Bronco Sport",2021,2026],["Edge",2007,2024],["Expedition",1997,2026],["Transit",2015,2026]],
+Chevrolet:[["Aveo",2004,2018],["Blazer",1992,2026],["Colorado",2004,2026],["Cruze",2008,2019],["Equinox",2005,2026],["Silverado",1999,2026],["Spark",2011,2022],["Suburban",1980,2026],["Tahoe",1995,2026],["Trailblazer",2002,2026]],
+Mitsubishi:[["ASX",2010,2026],["Eclipse Cross",2018,2026],["L200",1980,2026],["Montero",1983,2021],["Outlander",2003,2026],["Pajero",1983,2021]],
+Mazda:[["2",2003,2026],["3",2004,2026],["6",2003,2021],["CX-3",2016,2021],["CX-5",2013,2026],["CX-9",2007,2023],["BT-50",2006,2026]],
+Volkswagen:[["Amarok",2010,2026],["Golf",1980,2026],["Jetta",1980,2026],["Passat",1980,2022],["Polo",1980,2026],["Tiguan",2008,2026],["Touareg",2003,2026]],
+Subaru:[["Forester",1998,2026],["Impreza",1993,2026],["Legacy",1990,2020],["Outback",1995,2026]],
+Suzuki:[["Alto",1980,2026],["Grand Vitara",1998,2018],["Jimny",1998,2026],["Swift",1983,2026],["Vitara",1988,2026]],
+Jeep:[["Cherokee",1980,2026],["Compass",2007,2026],["Grand Cherokee",1993,2026],["Patriot",2007,2017],["Renegade",2015,2026],["Wrangler",1987,2026]],
+Dodge:[["Challenger",2008,2023],["Charger",2006,2023],["Durango",1998,2026],["Journey",2009,2020]],
+Ram:[["1500",2011,2026],["2500",1994,2026],["3500",1994,2026]],
+BMW:[["Serie 1",2004,2026],["Serie 3",1980,2026],["Serie 5",1980,2026],["Serie 7",1980,2026],["X1",2010,2026],["X3",2004,2026],["X5",2000,2026],["X6",2008,2026]],
+"Mercedes-Benz":[["Clase A",1997,2026],["Clase C",1983,2026],["Clase E",1984,2026],["Clase S",1980,2026],["GLA",2014,2026],["GLC",2016,2026],["GLE",2016,2026],["Sprinter",1995,2026]],
+Audi:[["A3",1996,2026],["A4",1995,2026],["A6",1980,2026],["Q3",2012,2026],["Q5",2009,2026],["Q7",2006,2026]],
+Volvo:[["S60",2001,2026],["S90",2017,2026],["XC40",2018,2026],["XC60",2009,2026],["XC90",2003,2026]],
+Renault:[["Clio",1990,2026],["Duster",2011,2026],["Koleos",2008,2024],["Logan",2004,2026],["Master",1997,2026],["Sandero",2007,2026]],
+Peugeot:[["208",2012,2026],["2008",2014,2026],["3008",2009,2026],["301",2012,2022],["Partner",1996,2026]],
+Isuzu:[["D-Max",2002,2026],["MU-X",2013,2026],["Trooper",1980,2002]],
+Changan:[["Alsvin",2017,2026],["CS35",2013,2026],["CS55",2017,2026],["CS75",2014,2026],["Hunter",2020,2026]],
+MG:[["3",2011,2026],["5",2012,2026],["ZS",2017,2026],["HS",2019,2026]],
+"Great Wall":[["Wingle 5",2006,2026],["Wingle 7",2018,2026],["Poer",2020,2026]],
+JAC:[["J4",2013,2022],["J7",2019,2026],["T8",2018,2026],["T9",2023,2026]],
+BYD:[["Dolphin",2021,2026],["Han",2020,2026],["Song Plus",2020,2026],["Yuan Plus",2022,2026]]
+};
+function modelData(make){return vehicleCatalog[make]||[];}
+function populateVehicleModels(makeId,modelId,yearId,preserveModel="",preserveYear=""){
+ const make=document.getElementById(makeId),model=document.getElementById(modelId),year=document.getElementById(yearId); if(!make||!model||!year)return;
+ const models=modelData(make.value); model.innerHTML='<option value="">Seleccione modelo...</option>'+models.map(x=>'<option value="'+esc(x[0])+'">'+esc(x[0])+'</option>').join(""); model.disabled=!models.length;
+ if(preserveModel&&models.some(x=>x[0]===preserveModel))model.value=preserveModel; populateVehicleYears(makeId,modelId,yearId,preserveYear);
+}
+function populateVehicleYears(makeId,modelId,yearId,preserveYear=""){
+ const make=document.getElementById(makeId),model=document.getElementById(modelId),year=document.getElementById(yearId); if(!make||!model||!year)return;
+ const item=modelData(make.value).find(x=>x[0]===model.value); if(!item){year.innerHTML='<option value="">Seleccione año...</option>';year.disabled=true;return;}
+ let out='<option value="">Seleccione año...</option>'; for(let y=item[2];y>=item[1];y--)out+='<option value="'+y+'">'+y+'</option>'; year.innerHTML=out; year.disabled=false; if(preserveYear)year.value=String(preserveYear);
+}
+
 function save(){localStorage.setItem(KEY,JSON.stringify(db));refresh()}
 function role(){return current?.role}
 function allowedNav(){
@@ -548,7 +589,11 @@ function editCustomer(id){
   customerDetail.innerHTML='<h3>✏️ Editar cliente</h3><div class="grid g3"><div><label>Tipo</label><select id="editCType"><option '+(c.type==="Persona"?"selected":"")+' >Persona</option><option '+(c.type==="Empresa"?"selected":"")+' >Empresa</option></select></div><div><label>Nombre / Razón social *</label><input id="editCName" value="'+esc(c.name)+'"></div><div><label>Teléfono *</label><input id="editCPhone" value="'+esc(c.phone)+'"></div><div><label>RTN</label><input id="editCRTN" value="'+esc(c.rtn||"")+'"></div></div><div class="actions"><button onclick="saveEditedCustomer(\''+id+'\')">💾 Guardar cambios</button><button class="secondary" onclick="openCustomer(\''+id+'\')">Cancelar</button></div>';
 }
 function saveEditedCustomer(id){const c=customer(id);if(!c)return;const name=document.getElementById("editCName").value.trim(),phone=document.getElementById("editCPhone").value.trim(),type=document.getElementById("editCType").value,rtn=document.getElementById("editCRTN").value.trim();if(!name||!phone)return alert("Nombre y teléfono son obligatorios.");if(type==="Empresa"&&!rtn)return alert("Para empresa el RTN es obligatorio.");c.type=type;c.name=name;c.phone=phone;c.rtn=rtn;c.updatedAt=new Date().toISOString();save();openCustomer(id);}
-function editVehicle(id){const v=vehicle(id);if(!v)return;const c=customer(v.customerId);customerDetail.innerHTML='<h3>✏️ Editar vehículo '+esc(v.plate)+'</h3><div class="grid g3"><div><label>Placa *</label><input id="editVPlate" value="'+esc(v.plate)+'"></div><div><label>Marca</label><input id="editVMake" value="'+esc(v.make||"")+'"></div><div><label>Modelo</label><input id="editVModel" value="'+esc(v.model||"")+'"></div><div><label>Año</label><input id="editVYear" type="number" min="1980" max="2026" value="'+esc(v.year||"")+'"></div><div><label>Motor</label><input id="editVEngine" value="'+esc(v.engine||"")+'"></div><div><label>Color</label><input id="editVColor" value="'+esc(v.color||"")+'"></div><div><label>Kilometraje</label><input id="editVKm" type="number" value="'+Number(v.km||0)+'"></div></div><div class="actions"><button onclick="saveEditedVehicle(\''+id+'\')">💾 Guardar cambios</button><button class="secondary" onclick="openCustomer(\''+c.id+'\')">Cancelar</button></div>';}
+function editVehicle(id){
+ const v=vehicle(id);if(!v)return;const c=customer(v.customerId);
+ customerDetail.innerHTML='<h3>✏️ Editar vehículo '+esc(v.plate)+'</h3><div class="grid g3"><div><label>Placa *</label><input id="editVPlate" value="'+esc(v.plate)+'"></div><div><label>Marca</label><select id="editVMake" onchange="populateVehicleModels(\'editVMake\',\'editVModel\',\'editVYear\')"><option value="">Seleccione marca...</option><option value="Toyota">Toyota</option><option value="Honda">Honda</option><option value="Nissan">Nissan</option><option value="Hyundai">Hyundai</option><option value="Kia">Kia</option><option value="Ford">Ford</option><option value="Chevrolet">Chevrolet</option><option value="Mitsubishi">Mitsubishi</option><option value="Mazda">Mazda</option><option value="Volkswagen">Volkswagen</option><option value="Subaru">Subaru</option><option value="Suzuki">Suzuki</option><option value="Jeep">Jeep</option><option value="Dodge">Dodge</option><option value="Ram">Ram</option><option value="BMW">BMW</option><option value="Mercedes-Benz">Mercedes-Benz</option><option value="Audi">Audi</option><option value="Volvo">Volvo</option><option value="Renault">Renault</option><option value="Peugeot">Peugeot</option><option value="Isuzu">Isuzu</option><option value="Changan">Changan</option><option value="MG">MG</option><option value="Great Wall">Great Wall</option><option value="JAC">JAC</option><option value="BYD">BYD</option></select></div><div><label>Modelo</label><select id="editVModel" onchange="populateVehicleYears(\'editVMake\',\'editVModel\',\'editVYear\')" disabled><option value="">Seleccione modelo...</option></select></div><div><label>Año</label><select id="editVYear" disabled><option value="">Seleccione año...</option></select></div><div><label>Motor</label><input id="editVEngine" value="'+esc(v.engine||"")+'"></div><div><label>Color</label><input id="editVColor" value="'+esc(v.color||"")+'"></div><div><label>Kilometraje</label><input id="editVKm" type="number" value="'+Number(v.km||0)+'"></div></div><div class="actions"><button onclick="saveEditedVehicle(\''+id+'\')">💾 Guardar cambios</button><button class="secondary" onclick="openCustomer(\''+c.id+'\')">Cancelar</button></div>';
+ setTimeout(()=>{document.getElementById("editVMake").value=v.make||"";populateVehicleModels("editVMake","editVModel","editVYear",v.model||"",v.year||"");},0);
+}
 function saveEditedVehicle(id){const v=vehicle(id);if(!v)return;const plate=document.getElementById("editVPlate").value.trim().toUpperCase();if(!plate)return alert("La placa es obligatoria.");if(db.vehicles.some(x=>x.id!==id&&String(x.plate||"").toUpperCase()===plate))return alert("Esa placa ya pertenece a otro vehículo.");v.plate=plate;v.make=document.getElementById("editVMake").value.trim();v.model=document.getElementById("editVModel").value.trim();v.year=document.getElementById("editVYear").value;v.engine=document.getElementById("editVEngine").value.trim();v.color=document.getElementById("editVColor").value.trim();v.km=Number(document.getElementById("editVKm").value||0);v.updatedAt=new Date().toISOString();save();openCustomer(v.customerId);}
 function toggleVehicle(id){const v=vehicle(id);if(!v)return;v.active=v.active===false;v.updatedAt=new Date().toISOString();save();openCustomer(v.customerId);}
 function changeVehicleOwner(id){const v=vehicle(id);if(!v)return;const old=customer(v.customerId);const opts=db.customers.filter(function(c){return c.id!==old.id&&c.active!==false;}).map(function(c){return '<option value="'+c.id+'">'+esc(c.name)+' · '+esc(c.phone)+'</option>';}).join("");customerDetail.innerHTML='<h3>🔄 Cambiar propietario · '+esc(v.plate)+'</h3><p class="muted">El historial del vehículo permanece intacto.</p><select id="newOwnerId"><option value="">Seleccione el nuevo propietario...</option>'+opts+'</select><div class="actions"><button onclick="saveVehicleOwner(\''+id+'\')">Guardar propietario</button><button class="secondary" onclick="openCustomer(\''+old.id+'\')">Cancelar</button></div>';}
