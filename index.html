@@ -1210,13 +1210,37 @@ function restoreCustomer(id){
 }
 function renderTech(){
  if(!["Técnico","Gerente"].includes(role()))return;
- const os=db.orders.filter(o=>(role()==="Gerente"||o.technicianId===current.id)&&!["Entregado","Cancelado"].includes(o.status)&&isActiveCustomerForVehicle(vehicle(o.vehicleId)));
- const cards=os.map(o=>{
+ const base=db.orders.filter(o=>(role()==="Gerente"||o.technicianId===current.id)&&!["Entregado","Cancelado"].includes(o.status)&&isActiveCustomerForVehicle(vehicle(o.vehicleId)));
+
+ const diagnosisOrders=base.filter(o=>!o.finalizationPending&&o.budget?.status!=="Autorizado"&&!["Esperando presupuesto","Trabajo autorizado - Finalización","Trabajo terminado"].includes(o.status));
+ const finalOrders=base.filter(o=>o.finalizationPending&&o.budget?.status==="Autorizado");
+
+ const diagnosisCards=diagnosisOrders.map(o=>{
    const v=vehicle(o.vehicleId)||{};
-   return '<div class="card" style="margin:10px 0;border-left:4px solid var(--brand)"><div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap"><div><h3 style="margin:0">📋 OT #'+String(o.orderNumber||0).padStart(5,"0")+'</h3><div><b>🚗 '+esc(v.plate||"")+'</b> · '+esc(v.make||"")+' '+esc(v.model||"")+' '+esc(v.year||"")+'</div></div><button class="success" onclick="openDiagnosis(\''+o.id+'\')">🔧 Agregar diagnóstico</button></div></div>';
+   return '<div class="card" style="margin:10px 0;border-left:4px solid var(--brand)"><div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap"><div><h3 style="margin:0">📋 OT #'+String(o.orderNumber||0).padStart(5,"0")+'</h3><div><b>🚗 '+esc(v.plate||"")+'</b> · '+esc(v.make||"")+' '+esc(v.model||"")+' '+esc(v.year||"")+'</div></div><button class="success" onclick="openDiagnosis(\''+o.id+'\')">🔧 Diagnóstico</button></div></div>';
  }).join("");
- techOrders.innerHTML='<div class="card"><h2>🔧 Diagnóstico</h2><p class="muted">Seleccioná una orden para ingresar el diagnóstico y solicitar los repuestos o materiales necesarios.</p></div>'+ (cards||'<div class="card"><div class="muted">No hay órdenes asignadas para diagnóstico.</div></div>');
+
+ const finalCards=finalOrders.map(o=>{
+   const v=vehicle(o.vehicleId)||{};
+   return '<div class="card" style="margin:10px 0;border-left:4px solid #d97706"><div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap"><div><h3 style="margin:0">📋 OT #'+String(o.orderNumber||0).padStart(5,"0")+'</h3><div><b>🚗 '+esc(v.plate||"")+'</b> · '+esc(v.make||"")+' '+esc(v.model||"")+' '+esc(v.year||"")+'</div><div class="muted">Presupuesto autorizado · pendiente de evidencia final</div></div><button class="success" onclick="openFinalization(\''+o.id+'\')">📸 Subir evidencia del trabajo</button></div></div>';
+ }).join("");
+
+ techOrders.innerHTML='<div class="card"><h2>🔧 Diagnóstico</h2><p class="muted">Aquí aparecen únicamente las órdenes que todavía están en etapa de diagnóstico. Al solicitar repuestos/materiales, la OT sale de este flujo.</p>'+ (diagnosisCards||'<div class="muted">No hay órdenes pendientes de diagnóstico.</div>')+'</div>'+
+ '<div class="card" style="margin-top:16px"><h2>📸 Evidencia de trabajo</h2><p class="muted">Una OT vuelve a aparecer aquí únicamente cuando el presupuesto fue autorizado y el Técnico debe subir la evidencia final.</p>'+ (finalCards||'<div class="muted">No hay trabajos autorizados pendientes de evidencia.</div>')+'</div>';
 }
+function openFinalization(id){
+ const o=db.orders.find(x=>x.id===id);if(!o||o.budget?.status!=="Autorizado"||!o.finalizationPending)return;
+ const v=vehicle(o.vehicleId)||{},c=customer(v.customerId)||{};
+ techOrders.innerHTML='<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><div><h2>📸 Evidencia final · OT #'+String(o.orderNumber||0).padStart(5,"0")+'</h2><div><b>🚗 '+esc(v.plate||"")+'</b> · '+esc(v.make||"")+' '+esc(v.model||"")+' '+esc(v.year||"")+'</div><div class="muted">👤 '+esc(c.name||"")+'</div></div><button class="secondary" onclick="renderTech()">← Volver</button></div></div>'+
+ '<div class="card"><h3>📷 Evidencia del trabajo realizado</h3><p class="muted">Subí las fotos que demuestren el trabajo realizado y agregá las observaciones finales.</p>'+
+ '<label>Foto 1 *</label><input id="fp1_'+id+'" type="file" accept="image/*">'+
+ '<label>Foto 2</label><input id="fp2_'+id+'" type="file" accept="image/*">'+
+ '<label>Foto 3</label><input id="fp3_'+id+'" type="file" accept="image/*">'+
+ '<label>Foto adicional / tablero</label><input id="fpd_'+id+'" type="file" accept="image/*">'+
+ '<label>Observaciones finales</label><textarea id="finalNote_'+id+'" placeholder="Trabajo realizado, piezas sustituidas, resultados..."></textarea>'+
+ '<div class="actions"><button class="success" onclick="finishTech(\''+id+'\')">✅ Marcar trabajo terminado</button></div></div>';
+}
+
 function openDiagnosis(id){
  const o=db.orders.find(function(x){return x.id===id;});if(!o)return;
  const v=vehicle(o.vehicleId)||{},c=customer(v.customerId)||{};
@@ -1290,7 +1314,7 @@ function finishTech(id){
      o.finalPhotos=photos;
      o.finalNotes=document.getElementById("finalNote_"+id)?.value.trim()||"";
      o.status="Trabajo terminado";
-     o.ready=true;
+     o.ready=false;
      o.finalizationPending=false;
      save();
      alert("✓ Trabajo terminado. La orden pasó a vehículos listos.");
