@@ -209,25 +209,110 @@ h1,h2,h3{margin-top:0}.grid{display:grid;gap:14px}.g2{grid-template-columns:repe
   <div class="card"><h3>📋 Clientes registrados</h3><div id="customerList"></div></div>
 </section>
 <section id="orden" class="view">
-        <h2>Nueva orden / Recepción</h2>
-        <div class="notice">📌 Nueva orden es únicamente el ingreso del vehículo. El diagnóstico, solicitudes y presupuesto continúan en <b>Pendientes</b>.</div>
+        <h2>🚗 Nueva orden / Recepción</h2>
+        <div class="notice">📌 Primero identificamos al cliente y al vehículo. Si la placa ya existe, cargamos sus datos e historial. Si es una placa nueva, podemos agregar el vehículo a un cliente existente o crear un cliente nuevo.</div>
+
         <div class="card">
           <h3>1. Identificar cliente y vehículo</h3>
-          <div class="grid g3"><input id="rSearch" placeholder="Placa, nombre, teléfono o RTN"><button onclick="searchReception()">Buscar</button><button class="secondary" onclick="newReceptionClear()">Limpiar</button></div>
+          <div class="grid g3">
+            <input id="rSearch" placeholder="Placa, nombre, teléfono o RTN">
+            <button onclick="searchReception()">🔎 Buscar</button>
+            <button class="secondary" onclick="newReceptionClear()">Limpiar</button>
+          </div>
           <div id="rMatches"></div>
         </div>
+
+        <div id="newVehiclePanel" class="card hidden">
+          <h3>➕ Agregar vehículo a cliente existente</h3>
+          <div id="newVehicleCustomerInfo" class="notice"></div>
+          <div class="grid g3">
+            <div><label>Placa *</label><input id="nvPlate"></div>
+            <div><label>Marca</label><input id="nvMake" placeholder="Toyota, Honda..."></div>
+            <div><label>Modelo</label><input id="nvModel"></div>
+            <div><label>Año</label><input id="nvYear" type="number" min="1980" max="2026"></div>
+            <div><label>Motor</label><input id="nvEngine"></div>
+            <div><label>Color</label><input id="nvColor"></div>
+            <div><label>Kilometraje actual</label><input id="nvKm" type="number"></div>
+          </div>
+          <div class="actions">
+            <button class="success" onclick="createVehicleForReception()">✓ Crear vehículo y continuar</button>
+            <button class="secondary" onclick="closeNewReceptionPanels()">Cancelar</button>
+          </div>
+          <div id="newVehicleMsg"></div>
+        </div>
+
+        <div id="newCustomerPanel" class="card hidden">
+          <h3>👤➕ Nuevo cliente + vehículo</h3>
+          <div class="grid g3">
+            <div><label>Tipo</label><select id="nrType"><option>Persona</option><option>Empresa</option></select></div>
+            <div><label>Nombre / Razón social *</label><input id="nrName"></div>
+            <div><label>Teléfono *</label><input id="nrPhone"></div>
+            <div><label>RTN</label><input id="nrRTN"></div>
+            <div><label>Placa *</label><input id="nrPlate"></div>
+            <div><label>Marca</label><input id="nrMake" placeholder="Toyota, Honda..."></div>
+            <div><label>Modelo</label><input id="nrModel"></div>
+            <div><label>Año</label><input id="nrYear" type="number" min="1980" max="2026"></div>
+            <div><label>Motor</label><input id="nrEngine"></div>
+            <div><label>Color</label><input id="nrColor"></div>
+            <div><label>Kilometraje actual</label><input id="nrKm" type="number"></div>
+          </div>
+          <div class="actions">
+            <button class="success" onclick="createCustomerForReception()">✓ Crear cliente/vehículo y continuar</button>
+            <button class="secondary" onclick="closeNewReceptionPanels()">Cancelar</button>
+          </div>
+          <div id="newCustomerMsg"></div>
+        </div>
+
         <div id="receptionForm" class="hidden">
-          <div class="card"><h3>2. Persona que entrega</h3><div class="grid g2"><div><label>Nombre *</label><input id="deliverer"></div><div><label>Teléfono</label><input id="delivererPhone"></div></div></div>
-          <div class="card"><h3>3. Datos de recepción</h3>
-            <label>Motivo de ingreso indicado por el cliente *</label><textarea id="reason"></textarea>
-            <div class="grid g2"><div><label>Daños/condición visible</label><textarea id="condition"></textarea></div><div><label>Observaciones de recepción</label><textarea id="receptionNotes"></textarea></div></div>
+          <div class="card">
+            <h3>2. Vehículo seleccionado</h3>
+            <div id="selectedReceptionVehicle" class="notice"></div>
             <div class="grid g2">
-              <div><label><input type="checkbox" id="fuel" style="width:auto"> Combustible verificado</label><label><input type="checkbox" id="dash" style="width:auto"> Luces de tablero verificadas</label></div>
-              <div><label><input type="checkbox" id="tools" style="width:auto"> Herramientas/objetos anotados</label><label><input type="checkbox" id="keys" style="width:auto"> Llaves recibidas</label></div>
+              <div><label>Kilometraje de entrada *</label><input id="receptionKm" type="number" min="0"></div>
+              <div><label>Estado del vehículo</label><input value="Recibido" disabled></div>
             </div>
           </div>
-          <div class="card"><h3>4. Fotos de recepción</h3><div class="photo-grid" id="receptionPhotos"></div></div>
-          <div class="card"><h3>5. Asignar técnico</h3><select id="assignTech"></select><div class="actions"><button class="success" onclick="createOrder()">✓ Recibir vehículo</button></div><div id="orderMsg"></div></div>
+
+          <div class="card">
+            <h3>3. Persona que entrega</h3>
+            <div class="grid g2">
+              <div><label>Nombre *</label><input id="deliverer"></div>
+              <div><label>Teléfono</label><input id="delivererPhone"></div>
+            </div>
+          </div>
+
+          <div class="card">
+            <h3>4. Datos de recepción</h3>
+            <label>Motivo de ingreso indicado por el cliente *</label>
+            <textarea id="reason" placeholder="Ej. El vehículo vibra al frenar..."></textarea>
+            <div class="grid g2">
+              <div><label>Daños / condición visible</label><textarea id="condition"></textarea></div>
+              <div><label>Observaciones de recepción</label><textarea id="receptionNotes"></textarea></div>
+            </div>
+            <div>
+              <label><input type="checkbox" id="fuel" style="width:auto"> Combustible verificado</label>
+              <label><input type="checkbox" id="dash" style="width:auto"> Luces de tablero verificadas</label>
+              <label><input type="checkbox" id="tools" style="width:auto"> Herramientas / objetos anotados</label>
+              <label><input type="checkbox" id="keys" style="width:auto"> Llaves recibidas</label>
+            </div>
+            <div style="margin-top:10px">
+              <label>Detalle de herramientas / objetos (si aplica)</label>
+              <input id="objectsNote" placeholder="Ej. gato, herramientas, pertenencias...">
+            </div>
+          </div>
+
+          <div class="card">
+            <h3>5. Fotos de recepción — obligatorias</h3>
+            <p class="muted">Frente, atrás, izquierda, derecha y tablero/kilometraje.</p>
+            <div class="photo-grid" id="receptionPhotos"></div>
+          </div>
+
+          <div class="card">
+            <h3>6. Asignar técnico</h3>
+            <select id="assignTech"></select>
+            <div class="actions"><button class="success" onclick="createOrder()">✓ Recibir vehículo y abrir orden</button></div>
+            <div id="orderMsg"></div>
+          </div>
         </div>
       </section>
 
@@ -479,16 +564,186 @@ function renderCustomers(){
   customerList.innerHTML=activeCustomers.length?'<table><tr><th>Cliente</th><th>Teléfono</th><th>RTN</th><th>Vehículos</th><th>Última orden</th><th>Acciones</th></tr>'+activeCustomers.map(function(c){const vs=db.vehicles.filter(function(v){return v.customerId===c.id;}),ods=db.orders.filter(function(o){return vs.some(function(v){return v.id===o.vehicleId;});}).sort(function(x,y){return String(y.date).localeCompare(String(x.date));});return '<tr><td><b>'+esc(c.name)+'</b><br><span class="muted">'+esc(c.type||"Persona")+'</span></td><td>'+esc(c.phone)+'</td><td>'+esc(c.rtn||"—")+'</td><td>'+vs.length+'</td><td>'+esc(ods[0]?.date||"—")+'</td><td><button onclick="openCustomer(\''+c.id+'\')">👁️ Ver</button> <button class="secondary" onclick="editCustomer(\''+c.id+'\')">✏️ Editar</button></td></tr>';}).join("")+'</table>':'<div class="muted">Todavía no hay clientes registrados.</div>';
 }
 function populateTech(){if(!assignTech)return;assignTech.innerHTML=db.users.filter(u=>u.role==="Técnico"&&u.active).map(u=>`<option value="${u.id}">${esc(u.name)}</option>`).join("")}
-function searchReception(){
- const q=rSearch.value.trim().toUpperCase();const vs=db.vehicles.filter(v=>v.plate.toUpperCase().includes(q)||(customer(v.customerId)?.name||"").toUpperCase().includes(q)||(customer(v.customerId)?.phone||"").includes(q)||(customer(v.customerId)?.rtn||"").includes(q));
- rMatches.innerHTML=vs.map(v=>{let c=customer(v.customerId);return `<div class="card"><b>${esc(v.plate)}</b> · ${esc(c?.name||"")} · ${esc(v.make)} ${esc(v.model)}<div class="actions"><button onclick="startReception('${v.id}')">Seleccionar vehículo</button></div></div>`}).join("")||'<div class="warn">No encontrado. Podés registrarlo en Clientes / Vehículos.</div>'
+function receptionPhotoSlots(){
+  return ["Frente","Atrás","Izquierda","Derecha","Tablero / kilometraje"];
 }
-function startReception(id){currentVehicle=vehicle(id);show("orden");rMatches.innerHTML=`<div class="ok">✓ Seleccionado: <b>${esc(currentVehicle.plate)}</b> · ${esc(customer(currentVehicle.customerId)?.name||"")}</div>`;receptionForm.classList.remove("hidden");receptionPhotos.innerHTML=["Frente","Atrás","Izquierda","Derecha","Tablero"].map((x,i)=>`<div class="photo-box"><label>${x}</label><input type="file" accept="image/*" onchange="photoPreview(this,'rp${i}')"><div id="rp${i}" class="photo-empty">Sin foto</div></div>`).join("")}
-function photoPreview(inp,id){if(!inp.files[0])return;let r=new FileReader();r.onload=e=>document.getElementById(id).innerHTML=`<img src="${e.target.result}">`;r.readAsDataURL(inp.files[0])}
-function newReceptionClear(){receptionForm.classList.add("hidden");rMatches.innerHTML=""}
-function createOrder(){
- if(!currentVehicle||!reason.value.trim()||!deliverer.value.trim())return orderMsg.innerHTML='<div class="warn">Seleccioná vehículo, motivo y persona que entrega.</div>';
- const id="o"+Date.now();db.orders.push({id,vehicleId:currentVehicle.id,date:new Date().toLocaleDateString("es-HN"),status:"Recibido",technicianId:assignTech.value,reason:reason.value.trim(),deliverer:{name:deliverer.value.trim(),phone:delivererPhone.value.trim()},condition:condition.value.trim(),receptionNotes:receptionNotes.value.trim(),checklist:{fuel:fuel.checked,dash:dash.checked,tools:tools.checked,keys:keys.checked},partRequests:[],budget:null,notes:"",ready:false});save();orderMsg.innerHTML='<div class="ok">✓ Vehículo recibido y técnico asignado. Aparece en Pendientes.</div>';receptionForm.classList.add("hidden")}
+function searchReception(){
+  const q=rSearch.value.trim().toUpperCase();
+  if(!q){
+    rMatches.innerHTML='<div class="warn">Escribí una placa, nombre, teléfono o RTN para buscar.</div>';
+    return;
+  }
+
+  const vehicleRows=db.vehicles.filter(v=>{
+    const c=customer(v.customerId)||{};
+    return [v.plate,v.make,v.model,c.name,c.phone,c.rtn].some(z=>String(z||"").toUpperCase().includes(q));
+  });
+
+  const customerRows=db.customers.filter(c=>{
+    return [c.name,c.phone,c.rtn].some(z=>String(z||"").toUpperCase().includes(q));
+  });
+
+  let html="";
+  if(vehicleRows.length){
+    html+='<h3 style="margin:16px 0 8px">🚗 Vehículos encontrados</h3>';
+    html+=vehicleRows.map(v=>{
+      const c=customer(v.customerId)||{};
+      return '<div class="card" style="margin:8px 0;border-left:4px solid var(--brand)"><b>'+esc(v.plate)+'</b> · '+esc(v.make)+' '+esc(v.model)+' '+esc(v.year)+
+        '<br><span class="muted">👤 '+esc(c.name||"")+' · '+esc(c.phone||"")+(c.rtn?' · RTN '+esc(c.rtn):"")+'</span>'+
+        '<div class="actions"><button onclick="startReception(\''+v.id+'\')">✓ Seleccionar vehículo</button></div></div>';
+    }).join("");
+  }
+
+  if(customerRows.length){
+    html+='<h3 style="margin:16px 0 8px">👤 Clientes encontrados</h3>';
+    html+=customerRows.map(c=>{
+      const vs=db.vehicles.filter(v=>v.customerId===c.id);
+      return '<div class="card" style="margin:8px 0"><b>'+esc(c.name)+'</b> · '+esc(c.phone)+(c.rtn?' · RTN '+esc(c.rtn):"")+
+        '<div class="muted">Vehículos registrados: '+vs.length+'</div>'+
+        '<div class="actions"><button class="secondary" onclick="openNewVehicleForReception(\''+c.id+'\')">➕ Agregar vehículo a este cliente</button></div></div>';
+    }).join("");
+  }
+
+  if(!html){
+    html='<div class="warn">No encontramos coincidencias.</div><div class="actions"><button onclick="openNewCustomerForReception()">👤➕ Registrar nuevo cliente y vehículo</button></div>';
+  }else{
+    html+='<div class="card" style="margin-top:14px;background:#f8fafc"><b>¿Es una placa nueva?</b><div class="actions"><button class="light" onclick="openNewCustomerForReception()">👤 Registrar nuevo cliente y vehículo</button></div></div>';
+  }
+  rMatches.innerHTML=html;
+}
+
+function closeNewReceptionPanels(){
+  document.getElementById("newVehiclePanel").classList.add("hidden");
+  document.getElementById("newCustomerPanel").classList.add("hidden");
+  document.getElementById("newVehicleMsg").innerHTML="";
+  document.getElementById("newCustomerMsg").innerHTML="";
+}
+
+function openNewVehicleForReception(customerId){
+  const c=customer(customerId);if(!c)return;
+  closeNewReceptionPanels();
+  document.getElementById("newVehiclePanel").classList.remove("hidden");
+  document.getElementById("newVehicleCustomerInfo").innerHTML='Cliente seleccionado: <b>'+esc(c.name)+'</b> · '+esc(c.phone)+(c.rtn?' · RTN '+esc(c.rtn):"");
+  document.getElementById("newVehiclePanel").dataset.customerId=customerId;
+  ["nvPlate","nvMake","nvModel","nvYear","nvEngine","nvColor","nvKm"].forEach(id=>document.getElementById(id).value="");
+  document.getElementById("newVehiclePanel").scrollIntoView({behavior:"smooth",block:"center"});
+}
+
+function createVehicleForReception(){
+  const panel=document.getElementById("newVehiclePanel"),customerId=panel.dataset.customerId;
+  const plate=document.getElementById("nvPlate").value.trim().toUpperCase();
+  if(!customerId||!plate)return document.getElementById("newVehicleMsg").innerHTML='<div class="warn">La placa es obligatoria.</div>';
+  if(db.vehicles.some(v=>String(v.plate||"").toUpperCase()===plate))return document.getElementById("newVehicleMsg").innerHTML='<div class="warn">Esa placa ya existe. Buscala arriba para seleccionarla.</div>';
+  const v={id:"v"+Date.now(),customerId,plate,make:document.getElementById("nvMake").value.trim(),model:document.getElementById("nvModel").value.trim(),year:document.getElementById("nvYear").value,engine:document.getElementById("nvEngine").value.trim(),color:document.getElementById("nvColor").value.trim(),km:Number(document.getElementById("nvKm").value||0),active:true,createdAt:new Date().toISOString()};
+  db.vehicles.push(v);save();closeNewReceptionPanels();startReception(v.id);
+}
+
+function openNewCustomerForReception(){
+  closeNewReceptionPanels();
+  document.getElementById("newCustomerPanel").classList.remove("hidden");
+  document.getElementById("newCustomerPanel").scrollIntoView({behavior:"smooth",block:"center"});
+}
+
+function createCustomerForReception(){
+  const type=document.getElementById("nrType").value;
+  const name=document.getElementById("nrName").value.trim();
+  const phone=document.getElementById("nrPhone").value.trim();
+  const rtn=document.getElementById("nrRTN").value.trim();
+  const plate=document.getElementById("nrPlate").value.trim().toUpperCase();
+  if(!name||!phone||!plate)return document.getElementById("newCustomerMsg").innerHTML='<div class="warn">Nombre, teléfono y placa son obligatorios.</div>';
+  if(type==="Empresa"&&!rtn)return document.getElementById("newCustomerMsg").innerHTML='<div class="warn">Para empresa el RTN es obligatorio.</div>';
+  if(db.vehicles.some(v=>String(v.plate||"").toUpperCase()===plate))return document.getElementById("newCustomerMsg").innerHTML='<div class="warn">Esa placa ya existe. Buscala arriba para seleccionarla.</div>';
+  const now=new Date().toISOString(),cid="c"+Date.now(),vid="v"+Date.now();
+  db.customers.push({id:cid,type,name,phone,rtn,active:true,createdAt:now});
+  db.vehicles.push({id:vid,customerId:cid,plate,make:document.getElementById("nrMake").value.trim(),model:document.getElementById("nrModel").value.trim(),year:document.getElementById("nrYear").value,engine:document.getElementById("nrEngine").value.trim(),color:document.getElementById("nrColor").value.trim(),km:Number(document.getElementById("nrKm").value||0),active:true,createdAt:now});
+  save();closeNewReceptionPanels();startReception(vid);
+}
+
+function startReception(id){
+  currentVehicle=vehicle(id);if(!currentVehicle)return;
+  closeNewReceptionPanels();
+  show("orden");
+  const c=customer(currentVehicle.customerId)||{};
+  rMatches.innerHTML='<div class="ok">✓ Seleccionado: <b>'+esc(currentVehicle.plate)+'</b> · '+esc(c.name||"")+' · '+esc(currentVehicle.make||"")+' '+esc(currentVehicle.model||"")+' '+esc(currentVehicle.year||"")+'</div>';
+  receptionForm.classList.remove("hidden");
+  document.getElementById("selectedReceptionVehicle").innerHTML='<b>🚗 '+esc(currentVehicle.plate)+'</b> · '+esc(currentVehicle.make||"")+' '+esc(currentVehicle.model||"")+' '+esc(currentVehicle.year||"")+'<br>👤 '+esc(c.name||"")+' · '+esc(c.phone||"")+(c.rtn?' · RTN '+esc(c.rtn):"");
+  receptionKm.value=Number(currentVehicle.km||0);
+  receptionPhotos.innerHTML=receptionPhotoSlots().map((x,i)=>'<div class="photo-box"><label>'+x+' *</label><input type="file" accept="image/*" onchange="photoPreview(this,\'rp'+i+'\')"><div id="rp'+i+'" class="photo-empty">Sin foto</div></div>').join("");
+  ["deliverer","delivererPhone","reason","condition","receptionNotes","objectsNote"].forEach(id=>document.getElementById(id).value="");
+  ["fuel","dash","tools","keys"].forEach(id=>document.getElementById(id).checked=false);
+  orderMsg.innerHTML="";
+  document.getElementById("receptionForm").scrollIntoView({behavior:"smooth",block:"start"});
+}
+
+function photoPreview(inp,id){
+  if(!inp.files[0])return;
+  const r=new FileReader();
+  r.onload=e=>document.getElementById(id).innerHTML='<img src="'+e.target.result+'">';
+  r.readAsDataURL(inp.files[0]);
+}
+
+function readFileDataURL(file){
+  return new Promise((resolve,reject)=>{
+    if(!file)return resolve("");
+    const r=new FileReader();
+    r.onload=()=>resolve(r.result);
+    r.onerror=reject;
+    r.readAsDataURL(file);
+  });
+}
+
+async function createOrder(){
+  if(!currentVehicle)return orderMsg.innerHTML='<div class="warn">Seleccioná un vehículo.</div>';
+  const km=document.getElementById("receptionKm").value;
+  if(km==="")return orderMsg.innerHTML='<div class="warn">Ingresá el kilometraje de entrada.</div>';
+  if(!reason.value.trim()||!deliverer.value.trim())return orderMsg.innerHTML='<div class="warn">El motivo y la persona que entrega son obligatorios.</div>';
+  const techId=assignTech.value;
+  if(!techId)return orderMsg.innerHTML='<div class="warn">Seleccioná un técnico.</div>';
+
+  const inputs=[...document.querySelectorAll("#receptionPhotos input[type=file]")];
+  const photos=[];
+  for(let i=0;i<inputs.length;i++){
+    if(!inputs[i].files[0])return orderMsg.innerHTML='<div class="warn">Falta la foto de <b>'+esc(receptionPhotoSlots()[i])+'</b>.</div>';
+    photos.push({type:receptionPhotoSlots()[i],photo:await readFileDataURL(inputs[i].files[0])});
+  }
+
+  const id="o"+Date.now();
+  currentVehicle.km=Number(km);
+  currentVehicle.lastReceptionKm=Number(km);
+  currentVehicle.updatedAt=new Date().toISOString();
+
+  db.orders.push({
+    id,
+    vehicleId:currentVehicle.id,
+    date:new Date().toLocaleDateString("es-HN"),
+    createdAt:new Date().toISOString(),
+    status:"Recibido",
+    technicianId:techId,
+    reason:reason.value.trim(),
+    deliverer:{name:deliverer.value.trim(),phone:delivererPhone.value.trim()},
+    condition:condition.value.trim(),
+    receptionNotes:receptionNotes.value.trim(),
+    objectsNote:objectsNote.value.trim(),
+    checklist:{fuel:fuel.checked,dash:dash.checked,tools:tools.checked,keys:keys.checked},
+    receptionPhotos:photos,
+    partRequests:[],
+    budget:null,
+    notes:"",
+    ready:false
+  });
+  save();
+  orderMsg.innerHTML='<div class="ok">✓ Vehículo recibido, fotos guardadas y técnico asignado. La orden ya aparece en Pendientes.</div>';
+  receptionForm.classList.add("hidden");
+  currentOrder=db.orders[db.orders.length-1];
+}
+
+function newReceptionClear(){
+  document.getElementById("receptionForm").classList.add("hidden");
+  closeNewReceptionPanels();
+  rMatches.innerHTML="";
+  rSearch.value="";
+  currentVehicle=null;
+}
 function renderPending(){
  if(role()==="Técnico"){pendingList.innerHTML="";return}
  const rows=[];
