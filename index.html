@@ -1163,30 +1163,64 @@ function publicBudget(token){
  document.body.innerHTML=`<div class="public">${companyHeader()}<p class="muted" style="text-align:center">Presupuesto para aprobación</p><div class="card">${publicCard(o)}</div></div>`;updateClientApproval();
 }
 function publicCard(o){
- let v=vehicle(o.vehicleId),c=customer(v.customerId),b=o.budget;let base=+b.parts+ +b.materials+ +b.labor;
- const parts=(o.partRequests||[]).filter(r=>r.status!=="Cancelado");
- return `<h2>Presupuesto · ${esc(v.plate)}</h2>
- <p><b>Cliente:</b> ${esc(c.name)}<br><b>Vehículo:</b> ${esc(v.make)} ${esc(v.model)} ${esc(v.year)}<br><b>Motivo:</b> ${esc(o.reason)}</p>
- ${parts.length?`<div class="card"><h3>🔧 Repuestos solicitados</h3>${parts.map(r=>`<div class="part-request-card">
-   <div class="part-head"><b>${esc(r.item)}</b><span>${esc(r.qty)} ud.</span></div>
-   ${r.photo?`<img class="part-photo" src="${r.photo}" alt="Pieza dañada">`:''}
-   <div class="muted" style="margin-top:6px">${esc(r.reason||"")}</div>
-   <div style="text-align:right;font-weight:800;margin-top:6px">${money(r.salePrice||0)}</div>
- </div>`).join("")}</div>`:''}
- <table><tr><th>Concepto</th><th>Valor</th></tr><tr><td>Repuestos</td><td>${money(b.parts)}</td></tr><tr><td>Materiales</td><td>${money(b.materials)}</td></tr><tr><td>Mano de obra</td><td>${money(b.labor)}</td></tr></table>
- ${b.note?`<div class="notice">${esc(b.note)}</div>`:""}
- <div class="card" style="margin-top:15px;background:#f8fafc">
-   <h3>1. Datos para autorización</h3>
-   <div class="grid g2">
-     <div><label>Método de pago *</label><select id="clientPay"><option value="">Seleccione...</option><option>Efectivo</option><option>Tarjeta</option><option>Transferencia</option></select></div>
-     <div><label>¿Requiere factura con RTN? *</label><select id="clientRTN" onchange="updateClientApproval()"><option value="">Seleccione...</option><option value="no">No</option><option value="si">Sí</option></select></div>
-   </div>
-   <div id="clientRtnBox" style="margin-top:10px"></div>
-   <div id="clientTotal" class="quote-total hidden" style="margin-top:15px"></div>
- </div>
- <div class="card" style="margin-top:15px;background:#f8fafc"><h3>💬 ¿Tiene alguna duda?</h3><p>Comuníquese con Servicio al Cliente.</p>${companyWhatsapp()?`<a href="https://wa.me/${companyWhatsapp()}" target="_blank"><button class="secondary">💬 Hablar con Servicio al Cliente</button></a>`:'<div class="warn">El WhatsApp de Servicio al Cliente aún no está configurado.</div>'}</div>
- <h3 style="margin-top:20px">2. ¿Aprueba el presupuesto?</h3>
- <div class="actions"><button class="success" onclick="clientApprove('${o.id}')">✅ SÍ, APRUEBO EL PRESUPUESTO</button><button class="danger" onclick="clientNo('${o.id}')">NO, NO LO APRUEBO</button></div>`
+ let v=vehicle(o.vehicleId)||{},c=customer(v.customerId)||{},b=o.budget||{parts:0,materials:0,labor:0,status:""};
+ const parts=(o.partRequests||[]).filter(r=>r.status!=="Cancelado"&&r.status!=="Devuelta");
+ const receptionPhotos=o.receptionPhotos||[];
+ const diagnosis=o.diagnosis||"";
+ const recommended=o.recommendedWork||"";
+ const receptionKm=o.receptionKm||v.lastReceptionKm||v.km||"";
+ const orderDate=o.date||"";
+ const deliverer=o.deliverer?.name||"";
+ const phone=o.deliverer?.phone||"";
+ return '<div class="card" style="background:#f8fafc;border-left:4px solid var(--brand)">'+
+   '<h2 style="margin-bottom:6px">📋 Orden de Trabajo #'+String(o.orderNumber||0).padStart(5,"0")+'</h2>'+
+   '<div class="muted">Información de la orden y presupuesto enviado para autorización.</div>'+
+   '</div>'+
+   '<div class="card"><h3>👤 Cliente y vehículo</h3>'+
+   '<div class="info">'+
+     '<div class="field"><span class="muted">Cliente</span><b>'+esc(c.name||"—")+'</b></div>'+
+     '<div class="field"><span class="muted">Teléfono</span><b>'+esc(c.phone||"—")+'</b></div>'+
+     '<div class="field"><span class="muted">Placa</span><b>'+esc(v.plate||"—")+'</b></div>'+
+     '<div class="field"><span class="muted">Vehículo</span><b>'+esc([v.make,v.model,v.year].filter(Boolean).join(" ")||"—")+'</b></div>'+
+     '<div class="field"><span class="muted">Motor</span><b>'+esc(v.engine||"—")+'</b></div>'+
+     '<div class="field"><span class="muted">Kilometraje de ingreso</span><b>'+esc(receptionKm?Number(receptionKm).toLocaleString("es-HN")+" km":"—")+'</b></div>'+
+     '<div class="field"><span class="muted">Fecha de ingreso</span><b>'+esc(orderDate||"—")+'</b></div>'+
+     '<div class="field"><span class="muted">Persona que entregó</span><b>'+esc(deliverer||"—")+(phone?" · "+esc(phone):"")+'</b></div>'+
+   '</div>'+
+   '<div style="margin-top:12px"><b>Motivo de ingreso:</b><div style="margin-top:5px">'+esc(o.reason||"—")+'</div></div>'+
+   (o.condition?'<div style="margin-top:10px"><b>Condición observada al recibir:</b><div style="margin-top:5px">'+esc(o.condition)+'</div></div>':'')+
+   (o.receptionNotes?'<div style="margin-top:10px"><b>Observaciones de recepción:</b><div style="margin-top:5px">'+esc(o.receptionNotes)+'</div></div>':'')+
+   '</div>'+
+   (receptionPhotos.length?'<div class="card"><h3>📸 Evidencia de recepción</h3><div class="photo-grid">'+receptionPhotos.map(function(p){return '<div class="photo-box"><label>'+esc(p.type||"Foto")+'</label><img src="'+esc(p.photo||"")+'" alt="'+esc(p.type||"Foto de recepción")+'"></div>';}).join("")+'</div></div>':'')+
+   '<div class="card"><h3>🩺 Diagnóstico y trabajo recomendado</h3>'+
+     '<div style="margin-bottom:12px"><b>Diagnóstico / hallazgos</b><div style="margin-top:5px">'+esc(diagnosis||"Pendiente de diagnóstico")+'</div></div>'+
+     (recommended?'<div><b>Trabajo recomendado</b><div style="margin-top:5px">'+esc(recommended)+'</div></div>':'')+
+   '</div>'+
+   (parts.length?'<div class="card"><h3>🔧 Repuestos y materiales solicitados</h3>'+parts.map(function(r){return '<div class="part-request-card">'+
+     '<div class="part-head"><b>'+esc(r.item||"")+'</b><span>'+esc(r.qty||1)+' ud. · '+esc(r.type||"Repuesto")+'</span></div>'+
+     (r.photo?'<img class="part-photo" src="'+esc(r.photo)+'" alt="Pieza dañada">':'')+
+     '<div class="muted" style="margin-top:6px">'+esc(r.reason||"")+'</div>'+
+   '</div>';}).join("")+'</div>':'')+
+   '<div class="card"><h3>💰 Presupuesto para autorización</h3>'+
+     '<table><tr><th>Concepto</th><th>Valor</th></tr>'+
+       '<tr><td>Repuestos</td><td>'+money(b.parts)+'</td></tr>'+
+       '<tr><td>Materiales</td><td>'+money(b.materials)+'</td></tr>'+
+       '<tr><td>Mano de obra</td><td>'+money(b.labor)+'</td></tr>'+
+     '</table>'+
+     (b.note?'<div class="notice">'+esc(b.note)+'</div>':'')+
+   '</div>'+
+   '<div class="card" style="margin-top:15px;background:#f8fafc">'+
+     '<h3>1. Datos para autorización</h3>'+
+     '<div class="grid g2">'+
+       '<div><label>Método de pago *</label><select id="clientPay"><option value="">Seleccione...</option><option>Efectivo</option><option>Tarjeta</option><option>Transferencia</option></select></div>'+
+       '<div><label>¿Requiere factura con RTN? *</label><select id="clientRTN" onchange="updateClientApproval()"><option value="">Seleccione...</option><option value="no">No</option><option value="si">Sí</option></select></div>'+
+     '</div>'+
+     '<div id="clientRtnBox" style="margin-top:10px"></div>'+
+     '<div id="clientTotal" class="quote-total hidden" style="margin-top:15px"></div>'+
+   '</div>'+
+   '<div class="card" style="margin-top:15px;background:#f8fafc"><h3>💬 ¿Tiene alguna duda?</h3><p>Comuníquese con Servicio al Cliente.</p>'+ (companyWhatsapp()?'<a href="https://wa.me/'+companyWhatsapp()+'" target="_blank"><button class="secondary">💬 Hablar con Servicio al Cliente</button></a>':'<div class="warn">El WhatsApp de Servicio al Cliente aún no está configurado.</div>')+'</div>'+
+   '<h3 style="margin-top:20px">2. ¿Aprueba el presupuesto?</h3>'+
+   '<div class="actions"><button class="success" onclick="clientApprove(\''+o.id+'\')">✅ SÍ, APRUEBO EL PRESUPUESTO</button><button class="danger" onclick="clientNo(\''+o.id+'\')">NO, NO LO APRUEBO</button></div>';
 }
 function updateClientApproval(){
  const rt=document.getElementById("clientRTN")?.value||"",box=document.getElementById("clientRtnBox"),totalBox=document.getElementById("clientTotal");
