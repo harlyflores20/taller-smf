@@ -1039,7 +1039,7 @@ function renderPending(){
    let v=vehicle(o.vehicleId),c=customer(v?.customerId);
    (o.partRequests||[]).filter(r=>!["Aprobado","Completado","Cancelado","Devuelta","En presupuesto"].includes(r.status)).forEach(r=>rows.push(`<div class="card pending"><h3>🔧 Solicitud de repuesto</h3><b>OT #${String(o.orderNumber||0).padStart(5,"0")} · ${esc(v?.plate)} · ${esc(c?.name||"")}</b><p><b>${esc(r.item)}</b> × ${esc(r.qty)}<br>${esc(r.reason)}</p><button onclick="openBudget('${o.id}')">Abrir solicitud</button></div>`));
    if(o.budget?.status==="Enviado"||o.status==="Esperando aprobación")rows.push(`<div class="card pending" style="border-left:4px solid #d97706"><h3>🟡 OT #${String(o.orderNumber||0).padStart(5,"0")} · Esperando aprobación</h3><b>🚗 ${esc(v?.plate||"")} · 👤 ${esc(c?.name||"")}</b><p>La cotización fue enviada al cliente. La Orden de Trabajo permanece en <b>Pendientes</b> mientras esperamos su respuesta.</p><button onclick="openBudget('${o.id}')">Ver presupuesto</button></div>`);
-   if(o.budget?.status==="No aprobado"||o.status==="Cotización no aprobada")rows.push(`<div class="card pending" style="border-left:4px solid #b91c1c"><h3>🔴 OT #${String(o.orderNumber||0).padStart(5,"0")} · Cotización no aprobada</h3><b>🚗 ${esc(v?.plate||"")} · 👤 ${esc(c?.name||"")}</b><p>El cliente no aprobó la cotización. Seleccioná la OT en <b>Repuestos / Aprobación</b> para modificarla o registrar que no realizará el trabajo.</p><button class="danger" onclick="openBudget('${o.id}')">Atender OT</button></div>`);if(o.ready)rows.push(`<div class="card pending"><h3>🚗 Vehículo listo</h3><b>${esc(v?.plate)}</b><p>Trabajo terminado. Listo para cobro/entrega.</p></div>`);
+   if(o.budget?.status==="No aprobado"||o.status==="Cotización no aprobada")rows.push(`<div class="card pending" style="border-left:4px solid #b91c1c"><h3>🔴 OT #${String(o.orderNumber||0).padStart(5,"0")} · Modificar cotización</h3><b>🚗 ${esc(v?.plate||"")} · 👤 ${esc(c?.name||"")}</b><div class="notice" style="margin-top:10px">🔔 <b>Notificación:</b> el cliente no aprobó la cotización. La OT permanece en <b>Pendientes</b> para darle seguimiento y hablar con el cliente.</div><div class="actions"><button class="success" onclick="openBudget('${o.id}')">🔄 Modificar cotización</button><button class="danger" onclick="clientDidNotProceed('${o.id}')">🚫 Cliente no realizará el trabajo</button></div></div>`);if(o.ready)rows.push(`<div class="card pending"><h3>🚗 Vehículo listo</h3><b>${esc(v?.plate)}</b><p>Trabajo terminado. Listo para cobro/entrega.</p></div>`);
  });pendingList.innerHTML=rows.join("")||'<div class="card">🎉 No hay pendientes.</div>'
 }
 function openBudget(id){currentOrder=db.orders.find(o=>o.id===id);show("presupuestos");renderBudgetDetail(id)}
@@ -1152,6 +1152,7 @@ function modifyBudget(id){
  o.budget.status="Borrador";
  o.budget.modifiedAt=new Date().toISOString();
  o.status="En cotización";
+ if(o.notification)o.notification.unread=false;
  save();
  renderBudgetDetail(id);
 }
@@ -1165,6 +1166,7 @@ function clientDidNotProceed(id){
  o.budget.parts=0;o.budget.materials=0;
  o.ready=true;
  o.finalizationPending=false;
+ if(o.notification)o.notification.unread=false;
  save();
  show("entrega");
  renderDelivery();
@@ -1316,7 +1318,17 @@ function clientApprove(id){
    <p class="muted">El vehículo pasa a la etapa de ejecución y finalización del trabajo.</p>
  </div></div>`;
 }
-function clientNo(id){let o=db.orders.find(x=>x.id===id);if(o.budget.status==="Autorizado")return;o.budget.status="Atencion";o.budget.customerResponse="No aprobado";o.status="Atención al cliente";save();document.body.innerHTML=`<div class="public">${companyHeader()}<div class="card"><h1>✓ Hemos recibido su respuesta</h1><p>Servicio al Cliente revisará el caso y se comunicará con usted para aclarar sus dudas.</p></div></div>`}
+function clientNo(id){
+ let o=db.orders.find(x=>x.id===id);if(!o||o.budget.status==="Autorizado")return;
+ o.budget=o.budget||{};
+ o.budget.status="No aprobado";
+ o.budget.customerResponse="No aprobado";
+ o.budget.rejectedAt=new Date().toISOString();
+ o.status="Cotización no aprobada";
+ o.notification={type:"presupuesto_no_aprobado",unread:true,createdAt:new Date().toISOString(),message:"El cliente no aprobó la cotización. Dar seguimiento en Pendientes."};
+ save();
+ document.body.innerHTML=`<div class="public">${companyHeader()}<div class="card"><h1>✓ Hemos recibido su respuesta</h1><p>El taller recibió su respuesta. Servicio al Cliente revisará la cotización y se comunicará con usted.</p></div></div>`
+}
 function isActiveCustomerForVehicle(v){
   const c=v?customer(v.customerId):null;
   return !!c && c.active!==false;
