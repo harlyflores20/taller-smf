@@ -329,7 +329,8 @@ h1,h2,h3{margin-top:0}.grid{display:grid;gap:14px}.g2{grid-template-columns:repe
         <div id="historyList"></div>
       </section>
 
-      <section id="tecnico" class="view">
+      <section id="trabajoTecnicos" class="view"><h2>🧰 Trabajo de técnicos</h2><div class="notice">Vista de seguimiento para Gerente: órdenes recibidas y avance del Técnico.</div><div id="techOverview"></div></section>
+<section id="tecnico" class="view">
         <h2>🔧 Mi trabajo</h2>
         <div class="notice">Solo aparecen vehículos asignados a este usuario. No se muestran precios ni costos.</div>
         <div id="techOrders"></div>
@@ -486,13 +487,13 @@ function save(){localStorage.setItem(KEY,JSON.stringify(db));refresh()}
 function role(){return current?.role}
 function allowedNav(){
  const common=["dashboard","clientes","orden","pendientes","historial"];
- if(role()==="Gerente")return [...common,"presupuestos","finanzas","reportes","usuarios","configuracion"];
+ if(role()==="Gerente")return [...common,"trabajoTecnicos","presupuestos","finanzas","reportes","usuarios","configuracion"];
  if(role()==="Administrador")return ["dashboard","usuarios"];
  if(role()==="Jefe de Pista")return [...common,"presupuestos"];
  if(role()==="Técnico")return ["dashboard","tecnico"];
  return [];
 }
-const titles={dashboard:"Inicio",clientes:"Clientes / Vehículos",orden:"Nueva orden",pendientes:"Pendientes",historial:"Historial",tecnico:"Mi trabajo",usuarios:"Usuarios",presupuestos:"Presupuestos",finanzas:"Finanzas",reportes:"Reportes",configuracion:"Configuración"};
+const titles={dashboard:"Inicio",clientes:"Clientes / Vehículos",orden:"Nueva orden",pendientes:"Pendientes",historial:"Historial",tecnico:"Mi trabajo",trabajoTecnicos:"Trabajo de técnicos",usuarios:"Usuarios",presupuestos:"Presupuestos",finanzas:"Finanzas",reportes:"Reportes",configuracion:"Configuración"};
 function buildNav(){nav.innerHTML=allowedNav().map(x=>`<button class="navbtn" data-view="${x}" onclick="show('${x}')">${({dashboard:"🏠",clientes:"👥",orden:"🚗",pendientes:"🔴",historial:"📋",tecnico:"🔧",usuarios:"⚙️",presupuestos:"💰",finanzas:"💵",reportes:"📊",configuracion:"⚙️"}[x]||"•")} ${titles[x]}</button>`).join("")}
 function show(id){if(!allowedNav().includes(id))return;document.querySelectorAll(".view").forEach(v=>v.classList.remove("active"));document.getElementById(id).classList.add("active");document.querySelectorAll(".navbtn").forEach(b=>b.classList.toggle("active",b.dataset.view===id));refresh()}
 function doLogin(){const u=document.getElementById("loginUser").value.trim(),p=document.getElementById("loginPass").value;const x=db.users.find(v=>v.user===u&&v.pass===p&&v.active);const msg=document.getElementById("loginMsg");if(!x){msg.textContent="Usuario o contraseña incorrectos.";msg.classList.remove("hidden");return}current=x;document.getElementById("login").style.display="none";document.getElementById("app").style.display="block";document.getElementById("who").textContent=`· ${x.name} · ${x.role}`;buildNav();show(allowedNav()[0])}
@@ -549,7 +550,7 @@ function refresh(){
   if(document.getElementById("kCash"))kCash.textContent=money(cash);if(document.getElementById("kCard"))kCard.textContent=money(card);if(document.getElementById("kTransfer"))kTransfer.textContent=money(transfer);
   if(document.getElementById("gerenteIncome"))gerenteIncome.style.display=role()==="Gerente"?"block":"none";
   if(document.getElementById("recent"))recent.innerHTML=db.orders.slice(-6).reverse().map(function(o){return '<div class="card" style="margin:7px 0"><b>'+esc(vehicle(o.vehicleId)?.plate||"")+"</b> · "+esc(o.status)+" · "+esc(o.date)+"</div>";}).join("")||'<div class="muted">Sin actividad.</div>';
-  if(document.getElementById("pendingList"))renderPending();if(document.getElementById("techOrders"))renderTech();if(document.getElementById("budgetArea"))renderBudgets();if(document.getElementById("historyList"))renderHistory();
+  if(document.getElementById("pendingList"))renderPending();if(document.getElementById("techOrders"))renderTech();if(document.getElementById("budgetArea"))renderBudgets();if(document.getElementById("techOverview"))renderTechOverview();if(document.getElementById("historyList"))renderHistory();
   if(role()==="Administrador"||role()==="Gerente")renderUsers();
   if(role()==="Gerente"){renderFinance();renderReports();renderCompany();}if(document.getElementById("customerList"))renderCustomers();
   populateTech();
@@ -847,6 +848,18 @@ function renderHistory(){
     const v=vehicle(o.vehicleId)||{},c=customer(v.customerId)||{},t=tech(o.technicianId)||{};
     return '<div class="card" style="margin:10px 0;border-left:4px solid var(--brand)"><div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap"><div><h3 style="margin:0">📋 OT #'+String(o.orderNumber||0).padStart(5,"0")+'</h3><div><b>🚗 '+esc(v.plate||"")+'</b> · '+esc(v.make||"")+' '+esc(v.model||"")+' '+esc(v.year||"")+'</div><div class="muted">👤 '+esc(c.name||"")+' · Técnico: '+esc(t.name||"No asignado")+'</div></div><div>'+status(o.status)+'</div></div><p style="margin-bottom:0"><b>Fecha:</b> '+esc(o.date||"")+' · <b>Motivo:</b> '+esc(o.reason||"")+'</p></div>';
   }).join(""):'<div class="card"><div class="muted">No hay órdenes de trabajo registradas.</div></div>';
+}
+function renderTechOverview(){
+ if(role()!=="Gerente")return;
+ const el=document.getElementById("techOverview");if(!el)return;
+ const orders=db.orders.filter(function(o){return !["Entregado","Cancelado"].includes(o.status);}).slice().sort(function(a,b){return Number(b.orderNumber||0)-Number(a.orderNumber||0);});
+ if(!orders.length){el.innerHTML="<div class=\"card\">No hay órdenes en trabajo técnico.</div>";return;}
+ el.innerHTML=orders.map(function(o){
+  const v=vehicle(o.vehicleId)||{},c=customer(v.customerId)||{},t=tech(o.technicianId)||{};
+  const reqs=o.partRequests||[];
+  const reqHtml=reqs.length?reqs.map(function(r){return "<div style=\"padding:5px 0;border-top:1px solid var(--line)\">🔩 "+esc(r.item||"")+" × "+esc(r.qty||1)+" · "+esc(r.status||"Pendiente")+"</div>";}).join(""):"<div class=\"muted\">Todavía no ha solicitado repuestos/materiales.</div>";
+  return "<div class=\"card\" style=\"margin:10px 0;border-left:4px solid var(--brand)\"><h3>OT #"+String(o.orderNumber||0).padStart(5,"0")+" · "+esc(v.plate||"")+"</h3><div>🚗 "+esc(v.make||"")+" "+esc(v.model||"")+" "+esc(v.year||"")+"</div><div class=\"muted\">👤 "+esc(c.name||"")+" · 🔧 Técnico: "+esc(t.name||"No asignado")+"</div><p><b>Estado:</b> "+status(o.status)+"</p><p><b>Motivo:</b> "+esc(o.reason||"")+"</p><p><b>Diagnóstico:</b> "+esc(o.diagnosis||"Pendiente")+"</p><div class=\"card\" style=\"background:#f8fafc\"><b>Solicitudes de repuestos/materiales</b>"+reqHtml+"</div></div>";
+ }).join("");
 }
 function renderPending(){
  if(role()==="Técnico"){pendingList.innerHTML="";return}
