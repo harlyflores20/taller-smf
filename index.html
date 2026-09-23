@@ -445,7 +445,7 @@ if(!Array.isArray(db.orders))db.orders=[];
 /* Normalizar numeración de OT: las órdenes antiguas sin número válido reciben un consecutivo. */
 (function normalizeWorkOrderNumbers(){
   const used=new Set();
-  db.orders.forEach(o=>{
+  db.orders.forEach(o=>{ if(!isActiveCustomerForVehicle(vehicle(o.vehicleId)))return;
     const n=Number(o.orderNumber);
     if(Number.isInteger(n)&&n>0&&!used.has(n)){o.orderNumber=n;used.add(n);}
     else{o.orderNumber=null;}
@@ -637,7 +637,7 @@ function saveCustomer(){
 
 function searchPeople(){
   const q=searchQ.value.trim().toUpperCase(); if(!q){searchResults.innerHTML="";return;}
-  const rows=db.vehicles.map(v=>({v:v,c:customer(v.customerId)})).filter(x=>{const c=x.c||{};return [x.v.plate,x.v.make,x.v.model,c.name,c.phone,c.rtn].some(z=>String(z||"").toUpperCase().includes(q));});
+  const rows=db.vehicles.filter(v=>v.active!==false).map(v=>({v:v,c:customer(v.customerId)})).filter(x=>x.c&&x.c.active!==false).filter(x=>{const c=x.c||{};return [x.v.plate,x.v.make,x.v.model,c.name,c.phone,c.rtn].some(z=>String(z||"").toUpperCase().includes(q));});
   searchResults.innerHTML=rows.length?rows.map(x=>'<div class="card"><b>🚗 '+esc(x.v.plate)+'</b> · '+esc(x.v.make)+' '+esc(x.v.model)+' '+esc(x.v.year)+'<br><span class="muted">👤 '+esc(x.c?.name||"")+', '+esc(x.c?.phone||"")+(x.c?.rtn?' · RTN '+esc(x.c.rtn):"")+'</span><div class="actions"><button onclick="openCustomer(\''+x.c.id+'\')">👤 Ver cliente</button><button class="secondary" onclick="openVehicle(\''+x.v.id+'\')">🚗 Ver vehículo</button><button class="light" onclick="startReception(\''+x.v.id+'\')">➕ Nueva recepción</button></div></div>').join(""):'<div class="warn">No encontramos resultados.</div>';
 }
 function clearPeople(){
@@ -652,30 +652,14 @@ function clearPeople(){
 function openVehicle(id){const v=vehicle(id);if(!v)return;currentVehicle=v;openCustomer(v.customerId);setTimeout(function(){const el=document.getElementById("vehicleDetail_"+id);if(el)el.scrollIntoView({behavior:"smooth",block:"center"});},50);}
 function openCustomer(id){
   const c=customer(id);if(!c)return;const vs=db.vehicles.filter(v=>v.customerId===id);customerDetail.classList.remove("hidden");
-  customerDetail.innerHTML='<div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap"><div><h3>👤 '+esc(c.name)+'</h3><div class="muted">'+esc(c.type||"Persona")+' · '+esc(c.phone)+(c.rtn?' · RTN '+esc(c.rtn):"")+'</div></div><div class="actions" style="margin-top:0"><button onclick="editCustomer(\''+id+'\')">✏️ Editar cliente</button>'+(role()==="Gerente"?'<button class="danger" onclick="deleteCustomer(\''+id+'\')">🗑️ Eliminar cliente</button>':'')+'<button class="secondary" onclick="closeCustomerDetail()">Cerrar</button></div></div><div class="card" style="margin-top:12px"><h3>🚗 Vehículos ('+vs.length+')</h3>'+(vs.length?vs.map(function(v){return customerVehicleCard(c,v);}).join(""):'<div class="muted">Este cliente no tiene vehículos registrados.</div>')+'</div>';
+  customerDetail.innerHTML='<div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap"><div><h3>👤 '+esc(c.name)+'</h3><div class="muted">'+esc(c.type||"Persona")+' · '+esc(c.phone)+(c.rtn?' · RTN '+esc(c.rtn):"")+'</div></div><div class="actions" style="margin-top:0"><button onclick="editCustomer(\''+id+'\')">✏️ Editar cliente</button>'+(role()==="Gerente"?'<button class="danger" onclick="archiveCustomer(\''+id+'\')">🗄️ Archivar cliente</button>':'')+'<button class="secondary" onclick="closeCustomerDetail()">Cerrar</button></div></div><div class="card" style="margin-top:12px"><h3>🚗 Vehículos ('+vs.length+')</h3>'+(vs.length?vs.map(function(v){return customerVehicleCard(c,v);}).join(""):'<div class="muted">Este cliente no tiene vehículos registrados.</div>')+'</div>';
 }
 function customerVehicleCard(c,v){
   const os=db.orders.filter(function(o){return o.vehicleId===v.id;});
   return '<div id="vehicleDetail_'+v.id+'" class="card" style="border-left:4px solid '+(v.active===false?"var(--muted)":"var(--brand)")+'"><div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap"><div><h3>🚗 '+esc(v.plate)+'</h3><div>'+esc(v.make)+' '+esc(v.model)+' '+esc(v.year)+' · '+esc(v.engine||"Motor no registrado")+'</div><div class="muted">'+Number(v.km||0).toLocaleString()+' km · '+(v.active===false?"Inactivo":"Activo")+'</div></div><div class="actions" style="margin-top:0"><button onclick="editVehicle(\''+v.id+'\')">✏️ Editar</button><button class="secondary" onclick="openVehicleHistory(\''+v.id+'\')">📋 Historial ('+os.length+')</button><button class="light" onclick="changeVehicleOwner(\''+v.id+'\')">🔄 Propietario</button><button class="'+(v.active===false?"success":"danger")+'" onclick="toggleVehicle(\''+v.id+'\')">'+(v.active===false?"Activar":"Inactivar")+'</button></div></div></div>';
 }
 function closeCustomerDetail(){customerDetail.classList.add("hidden");customerDetail.innerHTML="";}
-function deleteCustomer(id){
-  if(role()!=="Gerente"){alert("Solo el Gerente puede eliminar clientes.");return;}
-  const c=customer(id);if(!c)return;
-  const vs=db.vehicles.filter(function(v){return v.customerId===id;});
-  const orders=db.orders.filter(function(o){return vs.some(function(v){return v.id===o.vehicleId;});});
-  if(orders.length){
-    alert("Este cliente tiene historial u órdenes asociadas. No se puede eliminar físicamente porque se perdería el historial. Podés inactivarlo para conservar toda la información.");
-    return;
-  }
-  if(!confirm("¿Eliminar definitivamente a "+(c.name||"este cliente")+"?\n\nTambién se eliminarán sus vehículos registrados. Esta acción no se puede deshacer."))return;
-  db.vehicles=db.vehicles.filter(function(v){return v.customerId!==id;});
-  db.customers=db.customers.filter(function(x){return x.id!==id;});
-  save();
-  customerDetail.classList.add("hidden");
-  customerDetail.innerHTML="";
-  renderCustomers();
-}
+function deleteCustomer(id){archiveCustomer(id);}
 
 function editCustomer(id){
   const c=customer(id);if(!c)return;
@@ -712,10 +696,76 @@ function renderCustomers(){
   }).filter(Boolean));
   if(document.getElementById("monthClientCount"))monthClientCount.textContent=ids.size;
 
+  const archivedCustomers=db.customers.filter(function(c){return c.active===false;});
   if(!activeCustomers.length){
-    list.innerHTML='<div class="muted">Todavía no hay clientes registrados.</div>';
-    return;
+    list.innerHTML='<div class="muted">Todavía no hay clientes activos registrados.</div>';
+  } else {
+    list.innerHTML='<div class="notice" style="margin-bottom:12px">👥 <b>'+activeCustomers.length+'</b> cliente(s) activos en el sistema · 🚗 <b>'+activeVehicles.length+'</b> vehículo(s) activos.</div><div id="customerCards" class="grid g2"></div>';
+    const cards=document.getElementById("customerCards");
+
+    activeCustomers.forEach(function(c){
+      const vs=db.vehicles.filter(function(v){return v.customerId===c.id;});
+      const ods=db.orders.filter(function(o){
+        return vs.some(function(v){return v.id===o.vehicleId;});
+      }).sort(function(a,b){return String(b.date||"").localeCompare(String(a.date||""));});
+
+      const card=document.createElement("div");
+      card.className="card";
+      card.style.margin="0";
+      card.style.borderLeft="4px solid var(--brand)";
+
+      const title=document.createElement("h3");
+      title.style.margin="0 0 6px";
+      title.textContent="👤 "+(c.name||"");
+      card.appendChild(title);
+
+      const info=document.createElement("div");
+      info.className="muted";
+      info.textContent=(c.type||"Persona")+" · 📞 "+(c.phone||"Sin teléfono")+(c.rtn?" · RTN "+c.rtn:"");
+      card.appendChild(info);
+
+      const vehiclesInfo=document.createElement("div");
+      vehiclesInfo.style.marginTop="8px";
+      vehiclesInfo.textContent="🚗 "+vs.length+" vehículo(s) registrado(s)";
+      card.appendChild(vehiclesInfo);
+
+      const last=document.createElement("div");
+      last.className="muted";
+      last.style.marginTop="8px";
+      last.textContent=ods.length?"Última OT: #"+String(ods[0].orderNumber||0).padStart(5,"0")+" · "+(ods[0].status||""):"Sin órdenes de trabajo";
+      card.appendChild(last);
+
+      const actions=document.createElement("div");
+      actions.className="actions";
+      actions.style.marginTop="10px";
+      const open=document.createElement("button");
+      open.textContent="👤 Ver cliente";
+      open.onclick=function(){openCustomer(c.id);};
+      actions.appendChild(open);
+      card.appendChild(actions);
+      cards.appendChild(card);
+    });
   }
+
+  if(archivedCustomers.length){
+    const archiveCard=document.createElement("div");
+    archiveCard.className="card";
+    archiveCard.style.marginTop="15px";
+    archiveCard.innerHTML='<h3>🗄️ Archivo de clientes</h3><p class="muted">Clientes archivados no aparecen en búsqueda operativa, recepción, diagnóstico ni pendientes. Sus órdenes e historial se conservan.</p><div id="archivedCustomerList"></div>';
+    list.appendChild(archiveCard);
+    const al=document.getElementById("archivedCustomerList");
+    archivedCustomers.forEach(function(c){
+      const vs=db.vehicles.filter(function(v){return v.customerId===c.id;});
+      const row=document.createElement("div");
+      row.className="card";
+      row.style.margin="8px 0";
+      row.style.background="#f8fafc";
+      row.innerHTML='<b>👤 '+esc(c.name||"")+'</b> · '+esc(c.phone||"Sin teléfono")+' · '+vs.length+' vehículo(s)'+
+        (role()==="Gerente"?'<div class="actions"><button class="success" onclick="restoreCustomer(\''+c.id+'\')">♻️ Restaurar cliente</button></div>':'');
+      al.appendChild(row);
+    });
+  }
+  return;
 
   list.innerHTML='<div class="notice" style="margin-bottom:12px">👥 <b>'+activeCustomers.length+'</b> cliente(s) registrados en el sistema · 🚗 <b>'+activeVehicles.length+'</b> vehículo(s) activos.</div><div id="customerCards" class="grid g2"></div>';
   const cards=document.getElementById("customerCards");
@@ -1033,7 +1083,7 @@ function renderPending(){
 function openBudget(id){currentOrder=db.orders.find(o=>o.id===id);show("presupuestos");renderBudgets()}
 function renderBudgets(){
  if(!["Gerente","Jefe de Pista"].includes(role())){budgetArea.innerHTML="";return}
- const list=db.orders.filter(o=>(o.partRequests||[]).some(r=>r.status==="Pendiente"||r.status==="En presupuesto")||o.budget);
+ const list=db.orders.filter(o=>isActiveCustomerForVehicle(vehicle(o.vehicleId))&&((o.partRequests||[]).some(r=>r.status==="Pendiente"||r.status==="En presupuesto")||o.budget));
  budgetArea.innerHTML=list.map(o=>budgetCard(o)).join("")||'<div class="card">No hay presupuestos pendientes.</div>'
 }
 function budgetCard(o){
@@ -1176,9 +1226,38 @@ function clientApprove(id){
  </div></div>`;
 }
 function clientNo(id){let o=db.orders.find(x=>x.id===id);if(o.budget.status==="Autorizado")return;o.budget.status="Atencion";o.budget.customerResponse="No aprobado";o.status="Atención al cliente";save();document.body.innerHTML=`<div class="public">${companyHeader()}<div class="card"><h1>✓ Hemos recibido su respuesta</h1><p>Servicio al Cliente revisará el caso y se comunicará con usted para aclarar sus dudas.</p></div></div>`}
+function isActiveCustomerForVehicle(v){
+  const c=v?customer(v.customerId):null;
+  return !!c && c.active!==false;
+}
+function archiveCustomer(id){
+  if(role()!=="Gerente"){alert("Solo el Gerente puede archivar clientes.");return;}
+  const c=customer(id);if(!c)return;
+  if(!confirm("¿Enviar a archivo a "+(c.name||"este cliente")+"?\\n\\nEl cliente y sus vehículos dejarán de aparecer en las ventanas operativas, pero todo su historial y órdenes se conservarán."))return;
+  c.active=false;
+  c.archivedAt=new Date().toISOString();
+  c.archivedBy=current?.id||"";
+  db.vehicles.filter(v=>v.customerId===id).forEach(v=>{
+    v.active=false;
+    v.archivedAt=c.archivedAt;
+  });
+  save();
+  customerDetail.classList.add("hidden");
+  customerDetail.innerHTML="";
+  renderCustomers();
+}
+function restoreCustomer(id){
+  if(role()!=="Gerente"){alert("Solo el Gerente puede restaurar clientes.");return;}
+  const c=customer(id);if(!c)return;
+  c.active=true;
+  c.restoredAt=new Date().toISOString();
+  db.vehicles.filter(v=>v.customerId===id).forEach(v=>{v.active=true;delete v.archivedAt;});
+  save();
+  renderCustomers();
+}
 function renderTech(){
  if(!["Técnico","Gerente"].includes(role()))return;
- const os=db.orders.filter(o=>(role()==="Gerente"||o.technicianId===current.id)&&!["Entregado","Cancelado"].includes(o.status));
+ const os=db.orders.filter(o=>(role()==="Gerente"||o.technicianId===current.id)&&!["Entregado","Cancelado"].includes(o.status)&&isActiveCustomerForVehicle(vehicle(o.vehicleId)));
  const cards=os.map(o=>{
    const v=vehicle(o.vehicleId)||{};
    return '<div class="card" style="margin:10px 0;border-left:4px solid var(--brand)"><div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap"><div><h3 style="margin:0">📋 OT #'+String(o.orderNumber||0).padStart(5,"0")+'</h3><div><b>🚗 '+esc(v.plate||"")+'</b> · '+esc(v.make||"")+' '+esc(v.model||"")+' '+esc(v.year||"")+'</div></div><button class="success" onclick="openDiagnosis(\''+o.id+'\')">🔧 Agregar diagnóstico</button></div></div>';
@@ -1208,18 +1287,7 @@ function previewFinalTechPhoto(inp,id){
  if(!inp.files?.[0])return;
  const r=new FileReader();r.onload=e=>document.getElementById(id).innerHTML=`<img class="photo-preview" src="${e.target.result}" alt="Foto final">`;r.readAsDataURL(inp.files[0]);
 }
-function saveDiagnosis(id){
- let o=db.orders.find(x=>x.id===id);
- if(!o)return;
- const diagnosis=document.getElementById("diag_"+id)?.value.trim()||"";
- if(!diagnosis)return alert("Ingresá el diagnóstico / hallazgos antes de guardar.");
- o.diagnosis=diagnosis;
- o.recommendedWork=document.getElementById("rec_"+id)?.value.trim()||"";
- o.status="En diagnóstico";
- save();
- const msg=document.getElementById("diagMsg_"+id);
- if(msg)msg.innerHTML='<div class="ok">✓ Diagnóstico guardado correctamente en la OT #'+String(o.orderNumber||0).padStart(5,"0")+'.</div>';
-}
+
 function requestPart(id){
  let o=db.orders.find(x=>x.id===id);if(!o)return;
  const diagnosis=document.getElementById("diag_"+id)?.value.trim()||"";
