@@ -1242,10 +1242,35 @@ function renderDelivery(){
  const orders=db.orders.filter(o=>isActiveCustomerForVehicle(vehicle(o.vehicleId))&&(["Trabajo terminado"].includes(o.status)||o.ready===true||o.status==="Vehículo listo"));
  const cards=orders.map(o=>{
    const v=vehicle(o.vehicleId)||{},c=customer(v.customerId)||{};
-   if(o.status==="Trabajo terminado")return '<div class="card" style="margin:10px 0"><h3>🔎 OT #'+String(o.orderNumber||0).padStart(5,"0")+' · '+esc(v.plate||"")+'</h3><div>'+esc(v.make||"")+' '+esc(v.model||"")+' '+esc(v.year||"")+' · '+esc(c.name||"")+'</div><p class="muted">Trabajo terminado. Pendiente de evaluación final del Jefe de Pista.</p></div>';
+   if(o.status==="Trabajo terminado")return '<div class="card" style="margin:10px 0;border-left:4px solid #d97706"><h3>🔎 OT #'+String(o.orderNumber||0).padStart(5,"0")+' · '+esc(v.plate||"")+'</h3><div>'+esc(v.make||"")+' '+esc(v.model||"")+' '+esc(v.year||"")+' · '+esc(c.name||"")+'</div><p class="muted">Trabajo terminado. Pendiente de evaluación final del Jefe de Pista.</p><div class="actions"><button class="success" onclick="openFinalInspection(\''+o.id+'\')">🔎 Evaluar y liberar vehículo</button></div></div>';
    return '<div class="card" style="margin:10px 0;border-left:4px solid #16a34a"><h3>🚗 OT #'+String(o.orderNumber||0).padStart(5,"0")+' · '+esc(v.plate||"")+'</h3><div>'+esc(v.make||"")+' '+esc(v.model||"")+' '+esc(v.year||"")+' · '+esc(c.name||"")+'</div><p><b>Estado:</b> Vehículo listo para entrega.</p><div class="actions"><button class="success" onclick="markDelivered(\''+o.id+'\')">✓ Marcar entregado</button></div></div>';
  }).join("");
  root.innerHTML='<div class="notice">Aquí continúa el flujo después de la evidencia y de la revisión final del Jefe de Pista.</div>'+ (cards||'<div class="card"><div class="muted">No hay vehículos pendientes de entrega.</div></div>');
+}
+function openFinalInspection(id){
+ const o=db.orders.find(x=>x.id===id);if(!o||o.status!=="Trabajo terminado")return;
+ const v=vehicle(o.vehicleId)||{},c=customer(v.customerId)||{},root=document.getElementById("deliveryArea");
+ root.innerHTML='<div class="card"><h2>🔎 Evaluación final · OT #'+String(o.orderNumber||0).padStart(5,"0")+'</h2><div><b>🚗 '+esc(v.plate||"")+'</b> · '+esc(v.make||"")+' '+esc(v.model||"")+' '+esc(v.year||"")+'</div><div class="muted">👤 '+esc(c.name||"")+'</div><button class="secondary" onclick="renderDelivery()" style="margin-top:10px">← Volver</button></div>'+
+ '<div class="card"><h3>Inspección superficial</h3>'+
+ '<label><input type="checkbox" id="fiOil_'+id+'"> Nivel de aceite verificado</label>'+
+ '<label><input type="checkbox" id="fiCool_'+id+'"> Refrigerante verificado</label>'+
+ '<label><input type="checkbox" id="fiBrake_'+id+'"> Líquido de frenos verificado</label>'+
+ '<label><input type="checkbox" id="fiWasher_'+id+'"> Limpiaparabrisas verificado</label>'+
+ '<label><input type="checkbox" id="fiLeaks_'+id+'"> Sin fugas visibles</label>'+
+ '<label><input type="checkbox" id="fiLights_'+id+'"> Luces/testigos revisados</label>'+
+ '<label>Observaciones finales</label><textarea id="fiNotes_'+id+'" placeholder="Resultado de la revisión..."></textarea>'+
+ '<div class="actions"><button class="success" onclick="approveFinalInspectionCurrent(\''+id+'\')">✓ Aprobar y notificar vehículo listo</button></div></div>';
+}
+function approveFinalInspectionCurrent(id){
+ const o=db.orders.find(x=>x.id===id);if(!o)return;
+ const ids=["fiOil_","fiCool_","fiBrake_","fiWasher_","fiLeaks_","fiLights_"];
+ if(!ids.every(x=>document.getElementById(x+id)?.checked))return alert("Verificá todos los puntos de inspección antes de liberar el vehículo.");
+ o.finalInspection={approved:true,approvedAt:new Date().toISOString(),approvedBy:current?.id||"",notes:document.getElementById("fiNotes_"+id)?.value.trim()||""};
+ o.status="Vehículo listo";
+ o.ready=true;
+ o.finalizationPending=false;
+ save();
+ renderDelivery();
 }
 function markDelivered(id){
  const o=db.orders.find(x=>x.id===id);if(!o)return;
