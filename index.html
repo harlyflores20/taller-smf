@@ -640,7 +640,15 @@ function searchPeople(){
   const rows=db.vehicles.map(v=>({v:v,c:customer(v.customerId)})).filter(x=>{const c=x.c||{};return [x.v.plate,x.v.make,x.v.model,c.name,c.phone,c.rtn].some(z=>String(z||"").toUpperCase().includes(q));});
   searchResults.innerHTML=rows.length?rows.map(x=>'<div class="card"><b>🚗 '+esc(x.v.plate)+'</b> · '+esc(x.v.make)+' '+esc(x.v.model)+' '+esc(x.v.year)+'<br><span class="muted">👤 '+esc(x.c?.name||"")+', '+esc(x.c?.phone||"")+(x.c?.rtn?' · RTN '+esc(x.c.rtn):"")+'</span><div class="actions"><button onclick="openCustomer(\''+x.c.id+'\')">👤 Ver cliente</button><button class="secondary" onclick="openVehicle(\''+x.v.id+'\')">🚗 Ver vehículo</button><button class="light" onclick="startReception(\''+x.v.id+'\')">➕ Nueva recepción</button></div></div>').join(""):'<div class="warn">No encontramos resultados.</div>';
 }
-function clearPeople(){searchQ.value="";searchResults.innerHTML="";}
+function clearPeople(){
+  searchQ.value="";
+  searchResults.innerHTML="";
+  if(typeof customerDetail!=="undefined"){
+    customerDetail.innerHTML="";
+    customerDetail.classList.add("hidden");
+  }
+  currentVehicle=null;
+}
 function openVehicle(id){const v=vehicle(id);if(!v)return;currentVehicle=v;openCustomer(v.customerId);setTimeout(function(){const el=document.getElementById("vehicleDetail_"+id);if(el)el.scrollIntoView({behavior:"smooth",block:"center"});},50);}
 function openCustomer(id){
   const c=customer(id);if(!c)return;const vs=db.vehicles.filter(v=>v.customerId===id);customerDetail.classList.remove("hidden");
