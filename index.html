@@ -1040,57 +1040,51 @@ function renderPending(){
    if(o.ready)rows.push(`<div class="card pending"><h3>🚗 Vehículo listo</h3><b>${esc(v?.plate)}</b><p>Trabajo terminado. Listo para cobro/entrega.</p></div>`);
  });pendingList.innerHTML=rows.join("")||'<div class="card">🎉 No hay pendientes.</div>'
 }
-function openBudget(id){currentOrder=db.orders.find(o=>o.id===id);show("presupuestos");renderBudgets()}
+function openBudget(id){currentOrder=db.orders.find(o=>o.id===id);show("presupuestos");renderBudgetDetail(id)}
 function renderBudgets(){
- if(!["Gerente","Jefe de Pista"].includes(role())){budgetArea.innerHTML="";return}
- const list=db.orders.filter(o=>isActiveCustomerForVehicle(vehicle(o.vehicleId))&&((o.partRequests||[]).some(r=>r.status==="Pendiente"||r.status==="En presupuesto")||o.budget));
- budgetArea.innerHTML=list.map(o=>budgetCard(o)).join("")||'<div class="card">No hay presupuestos pendientes.</div>'
+ if(!["Gerente","Jefe de Pista"].includes(role())){budgetArea.innerHTML="";return;}
+ const list=db.orders.filter(o=>isActiveCustomerForVehicle(vehicle(o.vehicleId))&&(o.partRequests||[]).some(r=>r.status==="Pendiente"||r.status==="En presupuesto"));
+ budgetArea.innerHTML=list.map(function(o){
+   const v=vehicle(o.vehicleId)||{},c=customer(v.customerId)||{};
+   return '<div class="card" style="margin:10px 0;border-left:4px solid var(--brand)"><div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap"><div><h3 style="margin:0">📋 OT #'+String(o.orderNumber||0).padStart(5,"0")+'</h3><div><b>🚗 '+esc(v.plate||"")+'</b> · 👤 '+esc(c.name||"")+'</div></div><button class="success" onclick="openBudget(&quot;'+o.id+'&quot;)">💰 Realizar cotización</button></div></div>';
+ }).join("")||'<div class="card">No hay solicitudes de repuestos pendientes de cotización.</div>';
 }
 function budgetCard(o){
- let v=vehicle(o.vehicleId),c=customer(v.customerId),b=o.budget||{parts:0,materials:0,labor:0,status:"Sin preparar",note:""};
+ const v=vehicle(o.vehicleId)||{},c=customer(v.customerId)||{},b=o.budget||{parts:0,materials:0,labor:0,status:"Sin preparar",note:""};
  const locked=b.status==="Autorizado";
- const reqs=(o.partRequests||[]);
- const reqCards=reqs.map((r,i)=>{
+ const reqs=(o.partRequests||[]).filter(function(r){return r.status!=="Cancelado"&&r.status!=="Devuelta";});
+ const reqCards=reqs.map(function(r,i){
    const a=agencyById(r.agencyId);
-   return `<div class="card" style="margin:12px 0;border-left:4px solid var(--brand)">
-    <div style="display:flex;justify-content:space-between;gap:10px;align-items:center"><h4 style="margin:0">🔩 Repuesto #${i+1} · ${esc(r.item)}</h4><span class="muted">${esc(r.status||"Pendiente")}</span></div>
-    <p><b>Cantidad:</b> ${esc(r.qty)} · <b>Motivo:</b> ${esc(r.reason)}</p>
-    ${r.photo?`<div><img src="${r.photo}" style="max-width:180px;max-height:120px;border-radius:8px;object-fit:cover"></div>`:"<div class=\"muted\">Sin foto adjunta.</div>"}
-    <div class="grid g3" style="margin-top:10px">
-      <div><label>Agencia</label><select id="ra_${o.id}_${r.id}" ${locked?"disabled":""}><option value="">Seleccione...</option>${agencyOptions(r.agencyId)}</select></div>
-      <div><label>Precio al cliente</label><input id="rpv_${o.id}_${r.id}" type="number" step=".01" value="${Number(r.salePrice||0)}" ${locked?"disabled":""}></div>
-      <div><label>Cotización de agencia</label><input id="rqf_${o.id}_${r.id}" type="file" accept="image/*,.pdf" ${locked?"disabled":""}></div>
-    </div>
-    ${a?`<div class="muted" style="margin-top:6px">Agencia seleccionada: ${esc(a.name)}. El porcentaje de comisión/margen es información interna.</div>`:""}
-    ${role()==="Gerente"?`<div class="grid g3" style="margin-top:10px"><div><label>Costo interno</label><input id="ric_${o.id}_${r.id}" type="number" step=".01" value="${Number(r.internalCost||0)}" ${locked?"disabled":""}></div><div><label>Comisión configurada</label><input value="${a?Number(a.percent||0):0}%" disabled></div><div><label>Utilidad estimada</label><input id="riu_${o.id}_${r.id}" value="${money(Number(r.salePrice||0)-Number(r.internalCost||0))}" disabled></div></div>`:""}
-    <div class="actions"><button onclick="savePartRequest('${o.id}','${r.id}')" ${locked?"disabled":""}>💾 Guardar repuesto</button></div>
-   </div>`;
+   return '<div class="card" style="margin:12px 0;border-left:4px solid var(--brand)"><div style="display:flex;justify-content:space-between;gap:10px;align-items:center"><h4 style="margin:0">🔩 Solicitud #'+(i+1)+' · '+esc(r.item)+'</h4><span class="muted">'+esc(r.status||"Pendiente")+'</span></div><p><b>Cantidad:</b> '+esc(r.qty)+' · <b>Motivo:</b> '+esc(r.reason)+'</p>'+(r.photo?'<div><img src="'+r.photo+'" style="max-width:180px;max-height:120px;border-radius:8px;object-fit:cover"></div>':'<div class="muted">Sin foto de pieza.</div>')+'<div class="grid g2" style="margin-top:10px"><div><label>Agencia donde se cotiza *</label><select id="ra_'+o.id+'_'+r.id+'" '+(locked?"disabled":"")+'><option value="">Seleccione...</option>'+agencyOptions(r.agencyId)+'</select></div><div><label>📄 Fotografía / PDF de cotización</label><input id="rqf_'+o.id+'_'+r.id+'" type="file" accept="image/*,.pdf" '+(locked?"disabled":"")+'></div></div>'+(a?'<div class="muted" style="margin-top:6px">Agencia: '+esc(a.name)+'</div>':'')+'<div class="actions"><button onclick="savePartRequest(&quot;'+o.id+'&quot;,&quot;'+r.id+'&quot;)" '+(locked?"disabled":"")+'>💾 Guardar datos de cotización</button></div></div>';
  }).join("");
- let total=Number(b.parts||0)+Number(b.materials||0)+Number(b.labor||0);
- return `<div class="card"><h3>💰 ${esc(v.plate)} · ${esc(c.name)}</h3><p><b>Motivo:</b> ${esc(o.reason)}</p>
- <h3>🔧 Solicitudes de repuestos</h3>${reqCards||'<div class="warn">Esta orden no tiene solicitudes de repuestos.</div>'}
- <div class="grid g3"><div><label>Materiales</label><input id="m_${o.id}" type="number" step=".01" value="${b.materials||0}" ${locked?"disabled":""}></div><div><label>Mano de obra</label><input id="l_${o.id}" type="number" step=".01" value="${b.labor||0}" ${locked?"disabled":""}></div><div><label>Estado</label><div style="padding-top:10px">${status(b.status)}</div></div></div>
- <div><label>Nota para el cliente</label><input id="bn_${o.id}" value="${esc(b.note||"")}" ${locked?"disabled":""}></div>
- <div class="quote-total">Total base para el cliente: ${money(total)}</div>
- ${locked?'<div class="ok">🔒 Presupuesto autorizado y bloqueado. No se puede modificar precio ni alcance.</div>':`<div class="actions"><button onclick="saveBudget('${o.id}')">💾 Guardar presupuesto</button><button class="success" onclick="sendBudget('${o.id}')">📤 Enviar presupuesto al cliente</button></div>`}
- <div id="bm_${o.id}" class="muted"></div></div>`;
+ const total=Number(b.parts||0)+Number(b.materials||0)+Number(b.labor||0);
+ return '<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><div><h2>💰 Realizar cotización · OT #'+String(o.orderNumber||0).padStart(5,"0")+'</h2><div><b>🚗 '+esc(v.plate||"")+'</b> · 👤 '+esc(c.name||"")+'</div></div><button class="secondary" onclick="renderBudgets()">← Volver a solicitudes</button></div></div><div class="card" style="margin-top:14px"><p><b>Motivo de ingreso:</b> '+esc(o.reason||"")+'</p><p><b>Diagnóstico del Técnico:</b> '+esc(o.diagnosis||"Sin diagnóstico registrado")+'</p><h3>🔧 Solicitudes del Técnico</h3>'+reqCards+'</div><div class="card" style="margin-top:14px"><h3>💵 Cotización al cliente</h3><div class="grid g3"><div><label>Repuestos *</label><input id="p_'+o.id+'" type="number" step=".01" value="'+Number(b.parts||0)+'" '+(locked?"disabled":"")+'></div><div><label>Materiales *</label><input id="m_'+o.id+'" type="number" step=".01" value="'+Number(b.materials||0)+'" '+(locked?"disabled":"")+'></div><div><label>Mano de obra *</label><input id="l_'+o.id+'" type="number" step=".01" value="'+Number(b.labor||0)+'" '+(locked?"disabled":"")+'></div></div><label>Nota para el cliente</label><input id="bn_'+o.id+'" value="'+esc(b.note||"")+'" '+(locked?"disabled":"")+'><div class="quote-total" style="margin-top:12px">Subtotal: '+money(total)+'</div>'+(locked?'<div class="ok">🔒 Presupuesto autorizado y bloqueado.</div>':'<div class="actions"><button class="secondary" onclick="returnToDiagnosis(&quot;'+o.id+'&quot;)">↩️ Regresar orden de trabajo a Diagnóstico</button><button class="success" onclick="sendBudget(&quot;'+o.id+'&quot;)">📤 Enviar cotización al cliente</button></div>')+'<div id="bm_'+o.id+'"></div></div>';
 }
+function renderBudgetDetail(id){const o=db.orders.find(function(x){return x.id===id;});if(o)budgetArea.innerHTML=budgetCard(o);}
+function returnToDiagnosis(id){
+ const o=db.orders.find(function(x){return x.id===id;});if(!o)return;
+ if(!confirm("¿Regresar esta orden a Diagnóstico? El Técnico podrá eliminar la solicitud actual y crear una nueva."))return;
+ (o.partRequests||[]).filter(function(r){return r.status!=="Cancelado";}).forEach(function(r){r.status="Devuelta";});
+ o.budget={parts:0,materials:0,labor:0,status:"Devuelto a diagnóstico",note:""};
+ o.status="En diagnóstico";
+ save();
+ renderBudgets();
+}
+
 function savePartRequest(orderId,requestId){
- const o=db.orders.find(x=>x.id===orderId);if(!o||o.budget?.status==="Autorizado")return;
- const r=(o.partRequests||[]).find(x=>x.id===requestId);if(!r)return;
- const ag=document.getElementById(`ra_${orderId}_${requestId}`).value;const sale=Number(document.getElementById(`rpv_${orderId}_${requestId}`).value||0);
- if(!ag||sale<=0)return alert("Seleccione una agencia e ingrese el precio al cliente.");
- r.agencyId=ag;r.salePrice=sale;
- if(role()==="Gerente"){const c=document.getElementById(`ric_${orderId}_${requestId}`);r.internalCost=Number(c?.value||0);r.utility=sale-r.internalCost;}
- const file=document.getElementById(`rqf_${orderId}_${requestId}`)?.files?.[0];
- const finish=()=>{o.budget=o.budget||{};o.budget.parts=(o.partRequests||[]).reduce((s,x)=>s+Number(x.salePrice||0),0);r.status="En presupuesto";save();renderBudgets()};
- if(file){const fr=new FileReader();fr.onload=e=>{r.quote=e.target.result;finish()};fr.readAsDataURL(file)}else finish();
+ const o=db.orders.find(function(x){return x.id===orderId;});if(!o||o.budget?.status==="Autorizado")return;
+ const r=(o.partRequests||[]).find(function(x){return x.id===requestId;});if(!r)return;
+ const ag=document.getElementById("ra_"+orderId+"_"+requestId)?.value||"";
+ if(!ag)return alert("Seleccione la agencia donde se está cotizando.");
+ r.agencyId=ag;
+ const file=document.getElementById("rqf_"+orderId+"_"+requestId)?.files?.[0];
+ const finish=function(){r.status="En presupuesto";save();renderBudgetDetail(orderId);};
+ if(file){const fr=new FileReader();fr.onload=function(e){r.quote=e.target.result;finish();};fr.readAsDataURL(file);}else finish();
 }
 function getBudgetForm(id){
- const o=db.orders.find(x=>x.id===id);
- let parts=(o?.partRequests||[]).reduce((s,r)=>s+Number(r.salePrice||0),0);
- return {parts,materials:Number(document.getElementById("m_"+id).value||0),labor:Number(document.getElementById("l_"+id).value||0),note:document.getElementById("bn_"+id).value.trim(),status:"Borrador",updatedAt:new Date().toISOString()};
+ return {parts:Number(document.getElementById("p_"+id)?.value||0),materials:Number(document.getElementById("m_"+id)?.value||0),labor:Number(document.getElementById("l_"+id)?.value||0),note:document.getElementById("bn_"+id)?.value.trim()||"",status:"Borrador",updatedAt:new Date().toISOString()};
 }
+
 function saveBudget(id){let o=db.orders.find(x=>x.id===id);if(o.budget?.status==="Autorizado")return alert("El presupuesto autorizado está bloqueado.");let b={...(o.budget||{}),...getBudgetForm(id)};o.budget=b;save();document.getElementById("bm_"+id).innerHTML="✓ Presupuesto guardado.";renderBudgets()}
 function sendBudget(id){
  let o=db.orders.find(x=>x.id===id);if(o.budget?.status==="Autorizado")return alert("El presupuesto autorizado está bloqueado.");
@@ -1296,7 +1290,9 @@ function openDiagnosis(id){
  const o=db.orders.find(function(x){return x.id===id;});if(!o)return;
  const v=vehicle(o.vehicleId)||{},c=customer(v.customerId)||{};
  const reqs=o.partRequests||[];
- const reqList=reqs.length?'<div class="card" style="background:#f8fafc"><h3>📋 Solicitudes realizadas</h3>'+reqs.map(function(r,i){return '<div style="padding:8px 0;border-top:1px solid var(--line)"><b>#'+(i+1)+' '+esc(r.item)+'</b> × '+esc(r.qty)+' · '+esc(r.type||"Repuesto")+'<br><span class="muted">'+esc(r.reason)+' · Estado: '+esc(r.status||"Pendiente")+'</span></div>';}).join("")+'</div>':'';
+ const activeReqs=reqs.filter(function(r){return r.status!=="Cancelado";});
+ const reqList=activeReqs.length?'<div class="card" style="background:#f8fafc"><h3>📋 Solicitudes realizadas</h3>'+activeReqs.map(function(r,i){return '<div style="padding:8px 0;border-top:1px solid var(--line)"><b>#'+(i+1)+' '+esc(r.item)+'</b> × '+esc(r.qty)+' · '+esc(r.type||"Repuesto")+'<br><span class="muted">'+esc(r.reason)+' · Estado: '+esc(r.status||"Pendiente")+'</span>'+((r.status==="Devuelta"||r.status==="Pendiente")?'<div class="actions"><button class="danger" onclick="deletePartRequest(&quot;'+o.id+'&quot;,&quot;'+r.id+'&quot;)">🗑️ Eliminar solicitud</button></div>':'')+'</div>';}).join("")+'</div>':'';
+
 
  techOrders.innerHTML='<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><div><h2>🔧 Diagnóstico · OT #'+String(o.orderNumber||0).padStart(5,"0")+'</h2><div><b>🚗 '+esc(v.plate||"")+'</b> · '+esc(v.make||"")+' '+esc(v.model||"")+' '+esc(v.year||"")+'</div><div class="muted">👤 '+esc(c.name||"")+' · Motivo: '+esc(o.reason||"")+'</div></div><button class="secondary" onclick="renderTech()">← Volver a órdenes</button></div></div>'+
  '<div class="card"><h3>🩺 Diagnóstico y solicitud de repuestos/materiales</h3><p class="muted">En esta misma ventana el Técnico documenta el diagnóstico y, a partir de lo encontrado, solicita los repuestos o materiales necesarios. Cada repuesto/material se solicita individualmente y requiere foto de evidencia.</p>'+
@@ -1350,7 +1346,17 @@ function requestPart(id){
    renderTech();
  };
  fr.readAsDataURL(file.files[0]);
+}function deletePartRequest(orderId,requestId){
+ const o=db.orders.find(function(x){return x.id===orderId;});if(!o)return;
+ const r=(o.partRequests||[]).find(function(x){return x.id===requestId;});if(!r)return;
+ if(!["Devuelta","Pendiente"].includes(r.status))return alert("Esta solicitud ya está en cotización y no se puede eliminar desde Diagnóstico.");
+ if(!confirm("¿Eliminar esta solicitud de repuesto/material?"))return;
+ r.status="Cancelado";
+ if((o.partRequests||[]).every(function(x){return x.status==="Cancelado"}))o.status="En diagnóstico";
+ save();
+ openDiagnosis(orderId);
 }
+
 function finishTech(id){
  let o=db.orders.find(x=>x.id===id);
  if(!o||o.budget?.status!=="Autorizado")return alert("El trabajo debe tener un presupuesto autorizado antes de finalizar.");
