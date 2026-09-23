@@ -422,7 +422,7 @@ function refresh(){
   if(document.getElementById("recent"))recent.innerHTML=db.orders.slice(-6).reverse().map(function(o){return '<div class="card" style="margin:7px 0"><b>'+esc(vehicle(o.vehicleId)?.plate||"")+"</b> · "+esc(o.status)+" · "+esc(o.date)+"</div>";}).join("")||'<div class="muted">Sin actividad.</div>';
   if(document.getElementById("pendingList"))renderPending();if(document.getElementById("techOrders"))renderTech();if(document.getElementById("budgetArea"))renderBudgets();
   if(role()==="Administrador"||role()==="Gerente")renderUsers();
-  if(role()==="Gerente"){renderFinance();renderReports();renderCompany();renderCustomers();}
+  if(role()==="Gerente"){renderFinance();renderReports();renderCompany();}if(document.getElementById("customerList"))renderCustomers();
   populateTech();
 }
 function customer(id){return db.customers.find(x=>x.id===id)}
@@ -1038,8 +1038,8 @@ seedDemo();handleHash();if(location.hash)handleHash();
 (function(){
   function escX(v){return String(v??"").replace(/[&<>"]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m]));}
   function rowsClientes(){
-    const customers=Array.isArray(window.db?.customers)?window.db.customers:[];
-    const vehicles=Array.isArray(window.db?.vehicles)?window.db.vehicles:[];
+    const customers=Array.isArray(db?.customers)?db.customers:[];
+    const vehicles=Array.isArray(db?.vehicles)?db.vehicles:[];
     return customers.map(c=>{
       const vs=vehicles.filter(v=>v.customerId===c.id);
       return {id:c.id,tipo:c.type||"Persona",nombre:c.name||"",telefono:c.phone||"",rtn:c.rtn||"",vehiculos:vs.map(v=>v.plate).join(", "),cantidad:vs.length,estado:c.active===false?"Inactivo":"Activo"};
@@ -1076,7 +1076,26 @@ seedDemo();handleHash();if(location.hash)handleHash();
     w.document.write('<h1>SMF Taller</h1><h2>Clientes registrados</h2><p>Fecha: '+new Date().toLocaleDateString("es-HN")+' · Total: '+rows.length+'</p>');
     w.document.write('<table><thead><tr><th>Tipo</th><th>Cliente / Razón social</th><th>Teléfono</th><th>RTN</th><th>Vehículos</th><th>Cant.</th><th>Estado</th></tr></thead><tbody>');
     rows.forEach(r=>w.document.write('<tr><td>'+escX(r.tipo)+'</td><td>'+escX(r.nombre)+'</td><td>'+escX(r.telefono)+'</td><td>'+escX(r.rtn||"—")+'</td><td>'+escX(r.vehiculos||"—")+'</td><td>'+r.cantidad+'</td><td>'+escX(r.estado)+'</td></tr>'));
-    w.document.write('</tbody></table><p style="margin-top:25px">SMF Taller · Servicios Múltiples Flores</p></body></html>');
+    w.document.write('</tbody></table><p style="margin-top:25px">SMF Taller · Servicios Múltiples Flores</p>
+<script>
+/* V18.5 — clientes: listado visible y persistencia inmediata */
+(function(){
+  const oldSaveCustomer=window.saveCustomer;
+  window.saveCustomer=function(){
+    if(typeof oldSaveCustomer==="function")oldSaveCustomer();
+    setTimeout(function(){
+      if(typeof renderCustomers==="function")renderCustomers();
+      const list=document.getElementById("customerList");
+      if(list&&list.innerHTML.indexOf("Todavía no hay clientes registrados")===-1){
+        list.closest(".card")?.scrollIntoView({behavior:"smooth",block:"start"});
+      }
+    },80);
+  };
+  setTimeout(function(){if(typeof renderCustomers==="function")renderCustomers();},700);
+})();
+</script>
+
+</body></html>');
     w.document.close();
     w.focus();
     setTimeout(()=>w.print(),350);
