@@ -310,7 +310,7 @@ h1,h2,h3{margin-top:0}.grid{display:grid;gap:14px}.g2{grid-template-columns:repe
           <div class="card">
             <h3>6. Asignar técnico</h3>
             <select id="assignTech"></select>
-            <div class="actions"><button class="success" onclick="createOrder()">✓ Recibir vehículo y abrir orden</button></div>
+            <div class="actions"><button class="success" onclick="createOrder()">✓ Crear orden de trabajo y recibir vehículo</button></div>
             <div id="orderMsg"></div>
           </div>
         </div>
@@ -737,7 +737,12 @@ function readFileDataURL(file){
   });
 }
 
-async function createOrder(){
+async function nextWorkOrderNumber(){
+  const nums=db.orders.map(o=>Number(o.orderNumber||0)).filter(n=>n>0);
+  const max=Math.max(0,...nums);
+  return max+1;
+}
+function createOrder(){
   if(!currentVehicle)return orderMsg.innerHTML='<div class="warn">Seleccioná un vehículo.</div>';
   const km=document.getElementById("receptionKm").value;
   if(km==="")return orderMsg.innerHTML='<div class="warn">Ingresá el kilometraje de entrada.</div>';
@@ -752,13 +757,15 @@ async function createOrder(){
     photos.push({type:receptionPhotoSlots()[i],photo:await readFileDataURL(inputs[i].files[0])});
   }
 
+  const orderNumber=nextWorkOrderNumber();
   const id="o"+Date.now();
   currentVehicle.km=Number(km);
   currentVehicle.lastReceptionKm=Number(km);
   currentVehicle.updatedAt=new Date().toISOString();
 
-  db.orders.push({
+  const order={
     id,
+    orderNumber,
     vehicleId:currentVehicle.id,
     date:new Date().toLocaleDateString("es-HN"),
     createdAt:new Date().toISOString(),
@@ -775,11 +782,32 @@ async function createOrder(){
     budget:null,
     notes:"",
     ready:false
-  });
+  };
+  db.orders.push(order);
   save();
-  orderMsg.innerHTML='<div class="ok">✓ Vehículo recibido, fotos guardadas y técnico asignado. La orden ya aparece en Pendientes.</div>';
-  receptionForm.classList.add("hidden");
-  currentOrder=db.orders[db.orders.length-1];
+  currentOrder=order;
+  orderMsg.innerHTML='<div class="ok">✓ <b>Orden de Trabajo #'+String(orderNumber).padStart(5,"0")+'</b> creada. Vehículo recibido y técnico asignado.</div><div class="actions"><button onclick="printWorkOrder(\''+order.id+'\')">🖨️ Imprimir orden de trabajo</button></div>';
+  document.getElementById("receptionForm").scrollIntoView({behavior:"smooth",block:"center"});
+}
+
+function printWorkOrder(orderId){
+  const o=db.orders.find(x=>x.id===orderId);if(!o)return;
+  const v=vehicle(o.vehicleId),c=customer(v?.customerId),t=tech(o.technicianId);
+  const w=window.open("","_blank","width=900,height=900");
+  if(!w)return alert("El navegador bloqueó la ventana de impresión. Permití las ventanas emergentes para SMF.");
+  const photos=(o.receptionPhotos||[]).map(p=>p.photo?'<div style="display:inline-block;margin:6px;text-align:center"><img src="'+p.photo+'" style="width:150px;height:100px;object-fit:cover;border:1px solid #ccc"><div>'+esc(p.type)+'</div></div>':"").join("");
+  w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>Orden de Trabajo #'+String(o.orderNumber).padStart(5,"0")+' · SMF Taller</title><style>body{font-family:Arial,sans-serif;margin:28px;color:#111}h1,h2{margin:0 0 8px}table{width:100%;border-collapse:collapse;margin:14px 0}td,th{border:1px solid #999;padding:7px;text-align:left}th{background:#eee}.box{border:1px solid #999;padding:12px;margin:12px 0}.photos{margin-top:10px}.sign{margin-top:45px;display:flex;gap:70px}.line{border-top:1px solid #111;width:260px;padding-top:6px;text-align:center}@media print{button{display:none}}</style></head><body>');
+  w.document.write('<h1>SMF TALLER</h1><h2>ORDEN DE TRABAJO #'+String(o.orderNumber).padStart(5,"0")+'</h2>');
+  w.document.write('<p>Fecha de recepción: '+esc(o.date)+' · Estado: '+esc(o.status)+'</p>');
+  w.document.write('<div class="box"><b>CLIENTE</b><br>'+esc(c?.name||"")+' · Tel: '+esc(c?.phone||"")+(c?.rtn?' · RTN: '+esc(c.rtn):"")+'</div>');
+  w.document.write('<div class="box"><b>VEHÍCULO</b><table><tr><th>Placa</th><th>Marca</th><th>Modelo</th><th>Año</th><th>Motor</th><th>KM entrada</th></tr><tr><td>'+esc(v?.plate||"")+'</td><td>'+esc(v?.make||"")+'</td><td>'+esc(v?.model||"")+'</td><td>'+esc(v?.year||"")+'</td><td>'+esc(v?.engine||"")+'</td><td>'+Number(v?.km||0).toLocaleString()+'</td></tr></table></div>');
+  w.document.write('<div class="box"><b>RECEPCIÓN</b><br><b>Persona que entrega:</b> '+esc(o.deliverer?.name||"")+' · '+esc(o.deliverer?.phone||"")+'<br><b>Motivo:</b> '+esc(o.reason)+'<br><b>Condición visible:</b> '+esc(o.condition||"")+'<br><b>Observaciones:</b> '+esc(o.receptionNotes||"")+'<br><b>Objetos:</b> '+esc(o.objectsNote||"")+'<br><b>Checklist:</b> Combustible '+(o.checklist?.fuel?"Sí":"No")+' · Tablero '+(o.checklist?.dash?"Sí":"No")+' · Herramientas/objetos '+(o.checklist?.tools?"Sí":"No")+' · Llaves '+(o.checklist?.keys?"Sí":"No")+'</div>');
+  w.document.write('<div class="box"><b>TÉCNICO ASIGNADO:</b> '+esc(t?.name||"No asignado")+'</div>');
+  w.document.write('<div class="box"><b>FOTOS DE RECEPCIÓN</b><div class="photos">'+photos+'</div></div>');
+  w.document.write('<div class="sign"><div class="line">Firma Jefe de Pista</div><div class="line">Firma cliente / quien entrega</div></div>');
+  w.document.write('<p style="margin-top:35px;font-size:12px">SMF Taller · Orden de Trabajo #'+String(o.orderNumber).padStart(5,"0")+'</p>');
+  w.document.write('</body></html>');
+  w.document.close();w.focus();setTimeout(()=>w.print(),400);
 }
 
 function newReceptionClear(){
