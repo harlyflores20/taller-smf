@@ -1215,10 +1215,11 @@ function publicCard(o){
    '</div>';}).join("")+'</div>':'')+
    '<div class="card"><h3>💰 Presupuesto para autorización</h3>'+
      '<table><tr><th>Concepto</th><th>Valor</th></tr>'+
-       '<tr><td>Repuestos</td><td>'+money(b.parts)+'</td></tr>'+
-       '<tr><td>Materiales</td><td>'+money(b.materials)+'</td></tr>'+
-       '<tr><td>Mano de obra</td><td>'+money(b.labor)+'</td></tr>'+
+       '<tr><td>Repuestos</td><td><span class="client-price-pending">Pendiente de selección de RTN</span></td></tr>'+
+       '<tr><td>Materiales</td><td><span class="client-price-pending">Pendiente de selección de RTN</span></td></tr>'+
+       '<tr><td>Mano de obra</td><td><span class="client-price-pending">Pendiente de selección de RTN</span></td></tr>'+
      '</table>'+
+     '<div id="clientBudgetPrices" class="notice" style="margin-top:12px">Seleccione primero si requiere factura con RTN para mostrar el precio final.</div>'+
      (b.note?'<div class="notice">'+esc(b.note)+'</div>':'')+
    '</div>'+
    '<div class="card" style="margin-top:15px;background:#f8fafc">'+
@@ -1249,12 +1250,21 @@ function updateClientApproval(){
  }else{
    box.innerHTML="";
  }
+ const priceBox=document.getElementById("clientBudgetPrices");
  if(o&&rt){
-   const isv=rt==="si"?Number(o.budget.labor||0)*.15:0;
-   const total=Number(o.budget.parts||0)+Number(o.budget.materials||0)+Number(o.budget.labor||0)+isv;
+   const factor=rt==="si"?1.15:1;
+   const parts=Number(o.budget.parts||0);
+   const materials=Number(o.budget.materials||0)*factor;
+   const labor=Number(o.budget.labor||0)*factor;
+   const total=parts+materials+labor;
+   if(priceBox)priceBox.innerHTML='<div style="font-weight:800">Precios del presupuesto</div>'+
+     '<div style="margin-top:8px">Repuestos: <b>'+money(parts)+'</b></div>'+
+     '<div>Materiales: <b>'+money(materials)+'</b></div>'+
+     '<div>Mano de obra: <b>'+money(labor)+'</b></div>';
    totalBox.classList.remove("hidden");
-   totalBox.innerHTML=`Total a autorizar: ${money(total)}${isv?`<div class="muted" style="font-size:13px;font-weight:400">Incluye ISV 15% aplicado únicamente a mano de obra.</div>`:""}`;
+   totalBox.innerHTML=`Total a autorizar: ${money(total)}`;
  }else{
+   if(priceBox)priceBox.innerHTML='Seleccione primero si requiere factura con RTN para mostrar el precio final.';
    totalBox.classList.add("hidden");
    totalBox.innerHTML="";
  }
@@ -1268,7 +1278,12 @@ function clientApprovalData(o){
    rtnValue=document.getElementById("clientRtnValue")?.value.trim()||"";
    if(!invoiceName||!rtnValue){alert("Debe ingresar nombre/razón social y RTN para la factura.");return null}
  }
- const isv=rt==="si"?Number(o.budget.labor||0)*.15:0,total=Number(o.budget.parts||0)+Number(o.budget.materials||0)+Number(o.budget.labor||0)+isv;
+ const factor=rt==="si"?1.15:1;
+ const parts=Number(o.budget.parts||0);
+ const materials=Number(o.budget.materials||0)*factor;
+ const labor=Number(o.budget.labor||0)*factor;
+ const total=parts+materials+labor;
+ const isv=rt==="si"?(Number(o.budget.materials||0)*.15)+(Number(o.budget.labor||0)*.15):0;
  return {paymentMethod:pay,requiresRTN:rt==="si",customerRTN:rtnValue,invoiceName,isv,total};
 }
 function clientApprove(id){
