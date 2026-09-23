@@ -1195,12 +1195,12 @@ function openDiagnosis(id){
  '<div class="card"><h3>🩺 Diagnóstico y solicitud de repuestos/materiales</h3><p class="muted">En esta misma ventana el Técnico documenta el diagnóstico y, a partir de lo encontrado, solicita los repuestos o materiales necesarios. Cada repuesto/material se solicita individualmente y requiere foto de evidencia.</p>'+
  '<label>Diagnóstico / hallazgos *</label><textarea id="diag_'+o.id+'" placeholder="Describí lo encontrado, pruebas realizadas y causa probable...">'+esc(o.diagnosis||"")+'</textarea>'+
  '<label>Trabajo recomendado</label><textarea id="rec_'+o.id+'" placeholder="Qué trabajo necesita realizarse...">'+esc(o.recommendedWork||"")+'</textarea>'+
- '<div class="actions"><button onclick="saveDiagnosis(''+o.id+'')">💾 Guardar diagnóstico</button></div><div id="diagMsg_'+o.id+'"></div>'+
+ '<div class="actions"><button onclick="saveDiagnosis(&quot;'+o.id+'&quot;)">💾 Guardar diagnóstico</button></div><div id="diagMsg_'+o.id+'"></div>'+
  '<hr style="margin:18px 0;border:0;border-top:1px solid var(--line)"><h4>➕ Solicitar repuesto o material</h4>'+
  '<div class="grid g3"><div><label>Tipo *</label><select id="rt_'+o.id+'"><option value="Repuesto">Repuesto</option><option value="Material">Material</option></select></div><div><label>Repuesto / material *</label><input id="ri_'+o.id+'" placeholder="Ej. empaque, aceite, silicón..."></div><div><label>Cantidad *</label><input id="rq_'+o.id+'" type="number" value="1" min="1" step="1"></div></div>'+
  '<label>¿Por qué se necesita? *</label><textarea id="rr_'+o.id+'" placeholder="Explicá el motivo de la solicitud..."></textarea>'+
  '<label>📸 Foto de la pieza / evidencia *</label><input id="rp_'+o.id+'" type="file" accept="image/*">'+
- '<div class="actions"><button class="success" onclick="requestPart(''+o.id+'')">📨 Solicitar al Jefe de Pista</button></div><div id="partMsg_'+o.id+'"></div>'+reqList+'</div>';
+ '<div class="actions"><button class="success" onclick="requestPart(&quot;'+o.id+'&quot;)">📨 Solicitar al Jefe de Pista</button></div><div id="partMsg_'+o.id+'"></div>'+reqList+'</div>';
 }
 
 
@@ -1275,7 +1275,7 @@ function toggleUser(id){let u=db.users.find(x=>x.id===id);u.active=!u.active;sav
 function renderFinance(){if(role()!=="Gerente")return;let rows=db.orders.filter(o=>o.budget?.status==="Autorizado"),sales=0,cost=0;rows.forEach(o=>{sales+=Number(o.budget.parts)+Number(o.budget.materials)+Number(o.budget.labor)+(o.budget.rtn?Number(o.budget.labor)*.15:0);cost+=Number(o.internalCost||0)});fSales.textContent=money(sales);fCosts.textContent=money(cost);fProfit.textContent=money(sales-cost);fOrders.textContent=rows.length;financeTable.innerHTML=rows.map(o=>{let v=vehicle(o.vehicleId);let sale=Number(o.budget.parts)+Number(o.budget.materials)+Number(o.budget.labor)+(o.budget.rtn?Number(o.budget.labor)*.15:0),co=Number(o.internalCost||0);return `<tr><td>${esc(v.plate)}</td><td>${money(sale)}</td><td>${money(co)}</td><td>${money(sale-co)}</td></tr>`}).join("")||'<div class="muted">Sin ventas autorizadas.</div>'}
 function renderReports(){if(role()!=="Gerente")return;let ts=db.users.filter(u=>u.role==="Técnico");techReport.innerHTML=`<table><tr><th>Técnico</th><th>Órdenes</th><th>Terminadas</th></tr>${ts.map(t=>{let os=db.orders.filter(o=>o.technicianId===t.id);return `<tr><td>${esc(t.name)}</td><td>${os.length}</td><td>${os.filter(o=>o.ready).length}</td></tr>`}).join("")}</table>`;serviceReport.innerHTML='<div class="muted">Reporte base listo para conectar a los tipos de servicio y encuestas.</div>'}
 function handleHash(){let h=decodeURIComponent(location.hash);if(h.startsWith("#presupuesto/"))publicBudget(h.split("/")[1])}
-seedDemo();handleHash();if(location.hash)handleHash();
+renderBranding();seedDemo();handleHash();if(location.hash)handleHash();
 </script>
 
 <script>
