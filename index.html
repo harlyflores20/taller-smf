@@ -1058,11 +1058,36 @@ function budgetCard(o){
  const reqs=(o.partRequests||[]).filter(function(r){return r.status!=="Cancelado"&&r.status!=="Devuelta";});
  const reqCards=reqs.map(function(r,i){
    const a=agencyById(r.agencyId);
-   return '<div class="card" style="margin:12px 0;border-left:4px solid var(--brand)"><div style="display:flex;justify-content:space-between;gap:10px;align-items:center"><h4 style="margin:0">🔩 Solicitud #'+(i+1)+' · '+esc(r.item)+'</h4><span class="muted">'+esc(r.status||"Pendiente")+'</span></div><p><b>Cantidad:</b> '+esc(r.qty)+' · <b>Motivo:</b> '+esc(r.reason)+'</p>'+(r.photo?'<div><img src="'+r.photo+'" style="max-width:180px;max-height:120px;border-radius:8px;object-fit:cover"></div>':'<div class="muted">Sin foto de pieza.</div>')+'<div class="grid g2" style="margin-top:10px"><div><label>Agencia donde se cotiza *</label><select id="ra_'+o.id+'_'+r.id+'" '+(locked?"disabled":"")+'><option value="">Seleccione...</option>'+agencyOptions(r.agencyId)+'</select></div><div><label>📄 Fotografía / PDF de cotización</label><input id="rqf_'+o.id+'_'+r.id+'" type="file" accept="image/*,.pdf" '+(locked?"disabled":"")+'></div></div>'+(a?'<div class="muted" style="margin-top:6px">Agencia: '+esc(a.name)+'</div>':'')+'</div>';
+   return '<div style="margin:14px 0;padding:14px;border:1px solid var(--line);border-left:4px solid var(--brand);border-radius:10px"><div style="display:flex;justify-content:space-between;gap:10px;align-items:center"><h4 style="margin:0">🔩 Solicitud #'+(i+1)+' · '+esc(r.item)+'</h4><span class="muted">'+esc(r.status||"Pendiente")+'</span></div><p><b>Cantidad:</b> '+esc(r.qty)+' · <b>Motivo:</b> '+esc(r.reason)+'</p>'+(r.photo?'<div><img src="'+r.photo+'" style="max-width:180px;max-height:120px;border-radius:8px;object-fit:cover"></div>':'<div class="muted">Sin foto de pieza.</div>')+'<div class="grid g2" style="margin-top:10px"><div><label>Agencia donde se cotiza *</label><select id="ra_'+o.id+'_'+r.id+'" '+(locked?"disabled":"")+'><option value="">Seleccione...</option>'+agencyOptions(r.agencyId)+'</select></div><div><label>📄 Fotografía / PDF de cotización</label><input id="rqf_'+o.id+'_'+r.id+'" type="file" accept="image/*,.pdf" '+(locked?"disabled":"")+'></div></div>'+(a?'<div class="muted" style="margin-top:6px">Agencia: '+esc(a.name)+'</div>':'')+'</div>';
  }).join("");
  const total=Number(b.parts||0)+Number(b.materials||0)+Number(b.labor||0);
- return '<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><div><h2>💰 Realizar cotización · OT #'+String(o.orderNumber||0).padStart(5,"0")+'</h2><div><b>🚗 '+esc(v.plate||"")+'</b> · 👤 '+esc(c.name||"")+'</div></div><button class="secondary" onclick="renderBudgets()">← Volver a solicitudes</button></div></div><div class="card" style="margin-top:14px"><p><b>Motivo de ingreso:</b> '+esc(o.reason||"")+'</p><p><b>Diagnóstico del Técnico:</b> '+esc(o.diagnosis||"Sin diagnóstico registrado")+'</p><h3>🔧 Solicitudes del Técnico</h3>'+reqCards+'</div><div class="card" style="margin-top:14px"><h3>💵 Cotización al cliente</h3><div class="grid g3"><div><label>Repuestos *</label><input id="p_'+o.id+'" type="number" step=".01" value="'+Number(b.parts||0)+'" '+(locked?"disabled":"")+'></div><div><label>Materiales *</label><input id="m_'+o.id+'" type="number" step=".01" value="'+Number(b.materials||0)+'" '+(locked?"disabled":"")+'></div><div><label>Mano de obra *</label><input id="l_'+o.id+'" type="number" step=".01" value="'+Number(b.labor||0)+'" '+(locked?"disabled":"")+'></div></div><label>Nota para el cliente</label><input id="bn_'+o.id+'" value="'+esc(b.note||"")+'" '+(locked?"disabled":"")+'><div class="quote-total" style="margin-top:12px">Subtotal: '+money(total)+'</div>'+(locked?'<div class="ok">🔒 Presupuesto autorizado y bloqueado.</div>':'<div class="actions"><button class="secondary" onclick="returnToDiagnosis(&quot;'+o.id+'&quot;)">↩️ Regresar orden de trabajo a Diagnóstico</button><button class="secondary" onclick="clientDidNotProceed(&quot;'+o.id+'&quot;)">🚫 Cliente no realizó trabajo</button><button class="success" onclick="sendBudget(&quot;'+o.id+'&quot;)">📤 Enviar cotización al cliente</button></div>')+'<div id="bm_'+o.id+'"></div></div>';
+ return '<div class="card">'+
+ '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><div><h2>💰 Realizar cotización · OT #'+String(o.orderNumber||0).padStart(5,"0")+'</h2><div><b>🚗 '+esc(v.plate||"")+'</b> · 👤 '+esc(c.name||"")+'</div></div><button class="secondary" onclick="renderBudgets()">← Volver a solicitudes</button></div>'+
+ '<hr style="margin:16px 0">'+
+ '<p><b>Motivo de ingreso:</b> '+esc(o.reason||"")+'</p>'+
+ '<p><b>Diagnóstico del Técnico:</b> '+esc(o.diagnosis||"Sin diagnóstico registrado")+'</p>'+
+ '<h3>🔧 Solicitudes del Técnico</h3>'+
+ reqCards+
+ '<hr style="margin:18px 0">'+
+ '<h3>💵 Cotización al cliente</h3>'+
+ '<div class="grid g3">'+
+ '<div><label>Repuestos *</label><input id="p_'+o.id+'" type="number" step=".01" value="'+Number(b.parts||0)+'" '+(locked?"disabled":"")+' oninput="updateBudgetTotal(&quot;'+o.id+'&quot;)"></div>'+
+ '<div><label>Materiales *</label><input id="m_'+o.id+'" type="number" step=".01" value="'+Number(b.materials||0)+'" '+(locked?"disabled":"")+' oninput="updateBudgetTotal(&quot;'+o.id+'&quot;)"></div>'+
+ '<div><label>Mano de obra *</label><input id="l_'+o.id+'" type="number" step=".01" value="'+Number(b.labor||0)+'" '+(locked?"disabled":"")+' oninput="updateBudgetTotal(&quot;'+o.id+'&quot;)"></div>'+
+ '</div>'+
+ '<label>Nota para el cliente</label><input id="bn_'+o.id+'" value="'+esc(b.note||"")+'" '+(locked?"disabled":"")+'>'+
+ '<div class="quote-total" style="margin-top:12px">Subtotal: <span id="budgetTotal_'+o.id+'">'+money(total)+'</span></div>'+
+ (locked?'<div class="ok">🔒 Presupuesto autorizado y bloqueado.</div>':'<div class="actions"><button class="secondary" onclick="returnToDiagnosis(&quot;'+o.id+'&quot;)">↩️ Regresar orden de trabajo a Diagnóstico</button><button class="secondary" onclick="clientDidNotProceed(&quot;'+o.id+'&quot;)">🚫 Cliente no realizó trabajo</button><button class="success" onclick="sendBudget(&quot;'+o.id+'&quot;)">📤 Enviar cotización al cliente</button></div>')+
+ '<div id="bm_'+o.id+'"></div></div>';
 }
+function updateBudgetTotal(id){
+ const parts=Number(document.getElementById("p_"+id)?.value||0);
+ const materials=Number(document.getElementById("m_"+id)?.value||0);
+ const labor=Number(document.getElementById("l_"+id)?.value||0);
+ const el=document.getElementById("budgetTotal_"+id);
+ if(el)el.textContent=money(parts+materials+labor);
+}
+
 function renderBudgetDetail(id){const o=db.orders.find(function(x){return x.id===id;});if(o)budgetArea.innerHTML=budgetCard(o);}
 function returnToDiagnosis(id){
  const o=db.orders.find(function(x){return x.id===id;});if(!o)return;
