@@ -518,13 +518,13 @@ function populateVehicleYears(makeId,modelId,yearId,preserveYear=""){
 function save(){localStorage.setItem(KEY,JSON.stringify(db));refresh()}
 function role(){return current?.role}
 function allowedNav(){
- if(role()==="Gerente")return ["dashboard","clientes","orden","tecnico","presupuestos","evidencia","entrega","historial","reportes","finanzas","usuarios","configuracion"];
+ if(role()==="Gerente")return ["dashboard","clientes","orden","tecnico","presupuestos","pendientes","evidencia","entrega","historial","reportes","finanzas","usuarios","configuracion"];
  if(role()==="Administrador")return ["dashboard","usuarios"];
- if(role()==="Jefe de Pista")return ["dashboard","clientes","orden","tecnico","presupuestos","evidencia","entrega","historial"];
+ if(role()==="Jefe de Pista")return ["dashboard","clientes","orden","tecnico","presupuestos","pendientes","evidencia","entrega","historial"];
  if(role()==="Técnico")return ["dashboard","tecnico","evidencia"];
  return [];
 }
-const titles={dashboard:"Inicio",clientes:"Clientes / Vehículos",orden:"Nueva orden",tecnico:"Diagnóstico",presupuestos:"Repuestos / Aprobación",evidencia:"Evidencia",entrega:"Entrega",historial:"Historial",reportes:"Reportes",finanzas:"Finanzas",usuarios:"Usuarios",configuracion:"Configuración"};
+const titles={dashboard:"Inicio",clientes:"Clientes / Vehículos",orden:"Nueva orden",tecnico:"Diagnóstico",presupuestos:"Repuestos / Aprobación",pendientes:"Pendientes",evidencia:"Evidencia",entrega:"Entrega",historial:"Historial",reportes:"Reportes",finanzas:"Finanzas",usuarios:"Usuarios",configuracion:"Configuración"};
 function buildNav(){nav.innerHTML=allowedNav().map(x=>`<button class="navbtn" data-view="${x}" onclick="show('${x}')">${({dashboard:"🏠",clientes:"👥",orden:"🚗",pendientes:"🔴",historial:"📋",tecnico:"🔧",usuarios:"⚙️",presupuestos:"💰",finanzas:"💵",reportes:"📊",configuracion:"⚙️"}[x]||"•")} ${titles[x]}</button>`).join("")}
 function show(id){if(!allowedNav().includes(id))return;document.querySelectorAll(".view").forEach(v=>v.classList.remove("active"));document.getElementById(id).classList.add("active");document.querySelectorAll(".navbtn").forEach(b=>b.classList.toggle("active",b.dataset.view===id));refresh()}
 function renderBranding(){
