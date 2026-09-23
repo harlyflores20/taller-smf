@@ -742,6 +742,18 @@ function renderCustomers(){
       open.textContent="👤 Ver cliente";
       open.onclick=function(){openCustomer(c.id);};
       actions.appendChild(open);
+      const editBtn=document.createElement("button");
+      editBtn.className="secondary";
+      editBtn.textContent="✏️ Editar";
+      editBtn.onclick=function(){editCustomer(c.id);};
+      actions.appendChild(editBtn);
+      if(role()==="Gerente"){
+        const archiveBtn=document.createElement("button");
+        archiveBtn.className="danger";
+        archiveBtn.textContent="🗄️ Archivar";
+        archiveBtn.onclick=function(){archiveCustomer(c.id);};
+        actions.appendChild(archiveBtn);
+      }
       card.appendChild(actions);
       cards.appendChild(card);
     });
@@ -767,65 +779,6 @@ function renderCustomers(){
   }
   return;
 
-  list.innerHTML='<div class="notice" style="margin-bottom:12px">👥 <b>'+activeCustomers.length+'</b> cliente(s) registrados en el sistema · 🚗 <b>'+activeVehicles.length+'</b> vehículo(s) activos.</div><div id="customerCards" class="grid g2"></div>';
-  const cards=document.getElementById("customerCards");
-
-  activeCustomers.forEach(function(c){
-    const vs=db.vehicles.filter(function(v){return v.customerId===c.id;});
-    const ods=db.orders.filter(function(o){
-      return vs.some(function(v){return v.id===o.vehicleId;});
-    }).sort(function(a,b){return String(b.date||"").localeCompare(String(a.date||""));});
-
-    const card=document.createElement("div");
-    card.className="card";
-    card.style.margin="0";
-    card.style.borderLeft="4px solid var(--brand)";
-
-    const title=document.createElement("h3");
-    title.style.margin="0 0 6px";
-    title.textContent="👤 "+(c.name||"");
-    card.appendChild(title);
-
-    const info=document.createElement("div");
-    info.className="muted";
-    info.textContent=(c.type||"Persona")+" · 📞 "+(c.phone||"Sin teléfono")+(c.rtn?" · RTN "+c.rtn:"");
-    card.appendChild(info);
-
-    const vehiclesInfo=document.createElement("div");
-    vehiclesInfo.style.marginTop="8px";
-    vehiclesInfo.textContent="🚗 "+vs.length+" vehículo(s) registrado(s)";
-    card.appendChild(vehiclesInfo);
-
-    const last=document.createElement("div");
-    last.className="muted";
-    last.textContent="Última orden: "+(ods[0]?.date||"—");
-    card.appendChild(last);
-
-    const actions=document.createElement("div");
-    actions.className="actions";
-
-    const viewBtn=document.createElement("button");
-    viewBtn.textContent="👁️ Ver cliente";
-    viewBtn.onclick=function(){openCustomer(c.id);};
-    actions.appendChild(viewBtn);
-
-    const editBtn=document.createElement("button");
-    editBtn.className="secondary";
-    editBtn.textContent="✏️ Editar";
-    editBtn.onclick=function(){editCustomer(c.id);};
-    actions.appendChild(editBtn);
-
-    if(role()==="Gerente"){
-      const deleteBtn=document.createElement("button");
-      deleteBtn.className="danger";
-      deleteBtn.textContent="🗑️ Eliminar";
-      deleteBtn.onclick=function(){deleteCustomer(c.id);};
-      actions.appendChild(deleteBtn);
-    }
-
-    card.appendChild(actions);
-    cards.appendChild(card);
-  });
 }
 function populateTech(){
   const el=document.getElementById("assignTech");if(!el)return;
