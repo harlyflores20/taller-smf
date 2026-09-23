@@ -428,10 +428,12 @@ const defaultUsers=[
  {id:"jp",name:"Jefe de Pista",user:"pista",pass:"pista123",role:"Jefe de Pista",active:true},
  {id:"t1",name:"Usuario 1",user:"usuario1",pass:"usuario1123",role:"Técnico",active:true},
  {id:"t2",name:"Usuario 2",user:"usuario2",pass:"usuario2123",role:"Técnico",active:true},
- {id:"t3",name:"Usuario 3",user:"usuario3",pass:"usuario3123",role:"Técnico",active:true}
+ {id:"t3",name:"Usuario 3",user:"usuario3",pass:"usuario3123",role:"Técnico",active:true},
+ {id:"tec1",name:"Técnico1",user:"tecnico1",pass:"tecnico1123",role:"Técnico",active:true}
 ];
 let db=JSON.parse(localStorage.getItem(KEY)||"null")||{users:defaultUsers,customers:[],vehicles:[],orders:[],seq:1,company:{name:"Servicios Múltiples Flores",rtn:"",location:"",phone:"",whatsapp:"",logo:"",agencies:[]}};
 if(!db.users||!db.users.length)db.users=defaultUsers;
+if(!db.users.some(u=>u.id==="tec1")){db.users.push({id:"tec1",name:"Técnico1",user:"tecnico1",pass:"tecnico1123",role:"Técnico",active:true});localStorage.setItem(KEY,JSON.stringify(db));}
 if(!db.company)db.company={name:"Servicios Múltiples Flores",rtn:"",location:"",phone:"",whatsapp:"",logo:"",agencies:[]};
 if(!Array.isArray(db.company.agencies))db.company.agencies=[];
 if(typeof db.company.logo!=="string")db.company.logo="";
@@ -711,7 +713,7 @@ function startReception(id){
     if(msg)msg.innerHTML='<div class="warn">No se pudo cargar el vehículo seleccionado.</div>';
     return;
   }
-  window.currentVehicle=v;
+  currentVehicle=v;
   closeNewReceptionPanels();
   const ordenView=document.getElementById("orden");
   if(ordenView){
@@ -723,6 +725,7 @@ function startReception(id){
   if(matches)matches.innerHTML='<div class="ok">✓ Vehículo seleccionado: <b>'+esc(v.plate)+'</b> · '+esc(c.name||"")+' · '+esc(v.make||"")+' '+esc(v.model||"")+' '+esc(v.year||"")+'</div>';
   const form=document.getElementById("receptionForm");
   if(!form)return;
+  populateTech();
   form.classList.remove("hidden");
   document.getElementById("selectedReceptionVehicle").innerHTML='<b>🚗 '+esc(v.plate)+'</b> · '+esc(v.make||"")+' '+esc(v.model||"")+' '+esc(v.year||"")+'<br>👤 '+esc(c.name||"")+' · '+esc(c.phone||"")+(c.rtn?' · RTN '+esc(c.rtn):"");
   document.getElementById("receptionKm").value=Number(v.km||0);
@@ -756,7 +759,7 @@ async function nextWorkOrderNumber(){
   return max+1;
 }
 async function createOrder(){
-  if(!currentVehicle)return orderMsg.innerHTML='<div class="warn">Seleccioná un vehículo.</div>';
+  if(!currentVehicle)return orderMsg.innerHTML='<div class="warn">Seleccioná un vehículo antes de crear la orden.</div>';
   const km=document.getElementById("receptionKm").value;
   if(km==="")return orderMsg.innerHTML='<div class="warn">Ingresá el kilometraje de entrada.</div>';
   if(!reason.value.trim()||!deliverer.value.trim())return orderMsg.innerHTML='<div class="warn">El motivo y la persona que entrega son obligatorios.</div>';
