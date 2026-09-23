@@ -37,7 +37,8 @@ h1,h2,h3{margin-top:0}.grid{display:grid;gap:14px}.g2{grid-template-columns:repe
 
 <div id="login" class="login">
   <div class="login-box">
-    <div class="logo">🔧 SMF Taller</div>
+    <div id="loginLogo" style="text-align:center;margin-bottom:12px"></div>
+    <div class="logo" id="loginCompanyName">🔧 SMF Taller</div>
     <div class="login-sub">Servicios Múltiples Flores</div>
     <label>Usuario</label><input id="loginUser" autocomplete="username">
     <label>Contraseña</label><input id="loginPass" type="password" autocomplete="current-password">
@@ -48,7 +49,10 @@ h1,h2,h3{margin-top:0}.grid{display:grid;gap:14px}.g2{grid-template-columns:repe
 
 <div id="app" class="app">
   <div class="top">
-    <div><b>🔧 SMF Taller</b> <small id="who"></small></div>
+    <div style="display:flex;align-items:center;gap:10px">
+      <div id="topLogo" style="display:flex;align-items:center"></div>
+      <div><b id="topCompanyName">🔧 SMF Taller</b> <small id="who"></small></div>
+    </div>
     <button onclick="logout()">🚪 Salir</button>
   </div>
   <div class="layout">
@@ -516,6 +520,19 @@ function allowedNav(){
 const titles={dashboard:"Inicio",clientes:"Clientes / Vehículos",orden:"Nueva orden",pendientes:"Pendientes",historial:"Historial",tecnico:"Diagnóstico",trabajoTecnicos:"Trabajo de técnicos",usuarios:"Usuarios",presupuestos:"Presupuestos",finanzas:"Finanzas",reportes:"Reportes",configuracion:"Configuración"};
 function buildNav(){nav.innerHTML=allowedNav().map(x=>`<button class="navbtn" data-view="${x}" onclick="show('${x}')">${({dashboard:"🏠",clientes:"👥",orden:"🚗",pendientes:"🔴",historial:"📋",tecnico:"🔧",usuarios:"⚙️",presupuestos:"💰",finanzas:"💵",reportes:"📊",configuracion:"⚙️"}[x]||"•")} ${titles[x]}</button>`).join("")}
 function show(id){if(!allowedNav().includes(id))return;document.querySelectorAll(".view").forEach(v=>v.classList.remove("active"));document.getElementById(id).classList.add("active");document.querySelectorAll(".navbtn").forEach(b=>b.classList.toggle("active",b.dataset.view===id));refresh()}
+function renderBranding(){
+  const company=db.company||{};
+  const name=company.name||"SMF Taller";
+  const logo=company.logo||"";
+  const loginLogo=document.getElementById("loginLogo");
+  const loginName=document.getElementById("loginCompanyName");
+  const topLogo=document.getElementById("topLogo");
+  const topName=document.getElementById("topCompanyName");
+  if(loginName)loginName.textContent=name;
+  if(topName)topName.textContent=name;
+  if(loginLogo)loginLogo.innerHTML=logo?'<img src="'+esc(logo)+'" alt="Logo" style="max-width:220px;max-height:95px;object-fit:contain">':'';
+  if(topLogo)topLogo.innerHTML=logo?'<img src="'+esc(logo)+'" alt="Logo" style="max-width:42px;max-height:42px;object-fit:contain;border-radius:6px">':'';
+}
 function doLogin(){const u=document.getElementById("loginUser").value.trim(),p=document.getElementById("loginPass").value;const x=db.users.find(v=>v.user===u&&v.pass===p&&v.active);const msg=document.getElementById("loginMsg");if(!x){msg.textContent="Usuario o contraseña incorrectos.";msg.classList.remove("hidden");return}current=x;document.getElementById("login").style.display="none";document.getElementById("app").style.display="block";document.getElementById("who").textContent=`· ${x.name} · ${x.role}`;buildNav();show(allowedNav()[0])}
 function logout(){current=null;app.style.display="none";login.style.display="flex";loginPass.value="";loginMsg.classList.add("hidden")}
 function renderCompany(){
@@ -526,7 +543,7 @@ function renderCompany(){
 function saveCompany(){
  if(role()!=="Gerente")return;
  if(!coName.value.trim())return companyMsg.innerHTML='<div class="warn">El nombre de la empresa es obligatorio.</div>';
- const finish=()=>{db.company={name:coName.value.trim(),rtn:coRTN.value.trim(),location:coLocation.value.trim(),phone:coPhone.value.trim(),whatsapp:coWhatsApp.value.trim(),logo:db.company.logo||"",agencies:db.company.agencies||[]};save();companyMsg.innerHTML='<div class="ok">✓ Configuración de empresa guardada.</div>';renderCompany()};
+ const finish=()=>{db.company={name:coName.value.trim(),rtn:coRTN.value.trim(),location:coLocation.value.trim(),phone:coPhone.value.trim(),whatsapp:coWhatsApp.value.trim(),logo:db.company.logo||"",agencies:db.company.agencies||[]};save();renderBranding();companyMsg.innerHTML='<div class="ok">✓ Configuración de empresa guardada.</div>';renderCompany()};
  const f=coLogo.files[0];if(f){const r=new FileReader();r.onload=e=>{db.company.logo=e.target.result;finish()};r.readAsDataURL(f)}else finish();
 }
 function companyWhatsapp(){return String(db.company?.whatsapp||"").replace(/\D/g,"")}
@@ -572,7 +589,8 @@ function refresh(){
   if(document.getElementById("recent"))recent.innerHTML=db.orders.slice(-6).reverse().map(function(o){return '<div class="card" style="margin:7px 0"><b>'+esc(vehicle(o.vehicleId)?.plate||"")+"</b> · "+esc(o.status)+" · "+esc(o.date)+"</div>";}).join("")||'<div class="muted">Sin actividad.</div>';
   if(document.getElementById("pendingList"))renderPending();if(document.getElementById("techOrders"))renderTech();if(document.getElementById("budgetArea"))renderBudgets();if(document.getElementById("techOverview"))renderTechOverview();if(document.getElementById("historyList"))renderHistory();
   if(role()==="Administrador"||role()==="Gerente")renderUsers();
-  if(role()==="Gerente"){renderFinance();renderReports();renderCompany();}if(document.getElementById("customerList"))renderCustomers();
+  if(role()==="Gerente"){renderFinance();renderReports();renderBranding();
+  renderCompany();}if(document.getElementById("customerList"))renderCustomers();
   populateTech();
 }
 function parseOrderDate(value){
