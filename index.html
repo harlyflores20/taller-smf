@@ -1195,12 +1195,12 @@ function openDiagnosis(id){
  '<div class="card"><h3>🩺 Diagnóstico y solicitud de repuestos/materiales</h3><p class="muted">En esta misma ventana el Técnico documenta el diagnóstico y, a partir de lo encontrado, solicita los repuestos o materiales necesarios. Cada repuesto/material se solicita individualmente y requiere foto de evidencia.</p>'+
  '<label>Diagnóstico / hallazgos *</label><textarea id="diag_'+o.id+'" placeholder="Describí lo encontrado, pruebas realizadas y causa probable...">'+esc(o.diagnosis||"")+'</textarea>'+
  '<label>Trabajo recomendado</label><textarea id="rec_'+o.id+'" placeholder="Qué trabajo necesita realizarse...">'+esc(o.recommendedWork||"")+'</textarea>'+
- '<div class="actions"><button onclick="saveDiagnosis(&quot;'+o.id+'&quot;)">💾 Guardar diagnóstico</button></div><div id="diagMsg_'+o.id+'"></div>'+
+ '<div id="diagMsg_'+o.id+'"></div>'+
  '<hr style="margin:18px 0;border:0;border-top:1px solid var(--line)"><h4>➕ Solicitar repuesto o material</h4>'+
  '<div class="grid g3"><div><label>Tipo *</label><select id="rt_'+o.id+'"><option value="Repuesto">Repuesto</option><option value="Material">Material</option></select></div><div><label>Repuesto / material *</label><input id="ri_'+o.id+'" placeholder="Ej. empaque, aceite, silicón..."></div><div><label>Cantidad *</label><input id="rq_'+o.id+'" type="number" value="1" min="1" step="1"></div></div>'+
  '<label>¿Por qué se necesita? *</label><textarea id="rr_'+o.id+'" placeholder="Explicá el motivo de la solicitud..."></textarea>'+
  '<label>📸 Foto de la pieza / evidencia *</label><input id="rp_'+o.id+'" type="file" accept="image/*">'+
- '<div class="actions"><button class="success" onclick="requestPart(&quot;'+o.id+'&quot;)">📨 Solicitar al Jefe de Pista</button></div><div id="partMsg_'+o.id+'"></div>'+reqList+'</div>';
+ '<div class="actions"><button class="success" onclick="requestPart(&quot;'+o.id+'&quot;)">💾 Guardar diagnóstico y solicitar al Jefe de Pista</button></div><div id="partMsg_'+o.id+'"></div>'+reqList+'</div>';
 }
 
 
@@ -1222,23 +1222,31 @@ function saveDiagnosis(id){
 }
 function requestPart(id){
  let o=db.orders.find(x=>x.id===id);if(!o)return;
+ const diagnosis=document.getElementById("diag_"+id)?.value.trim()||"";
+ const recommended=document.getElementById("rec_"+id)?.value.trim()||"";
  const type=document.getElementById("rt_"+id)?.value||"Repuesto";
  const item=document.getElementById("ri_"+id)?.value.trim()||"";
  const qty=Number(document.getElementById("rq_"+id)?.value||0);
  const reason=document.getElementById("rr_"+id)?.value.trim()||"";
  const file=document.getElementById("rp_"+id);
  const msg=document.getElementById("partMsg_"+id);
- if(!item||qty<=0||!reason||!file?.files?.[0]){
-   if(msg)msg.innerHTML='<div class="warn">Completá tipo, repuesto/material, cantidad, motivo y foto de evidencia.</div>';
+ if(!diagnosis||!item||qty<=0||!reason||!file?.files?.[0]){
+   if(msg)msg.innerHTML='<div class="warn">Completá el diagnóstico, tipo, repuesto/material, cantidad, motivo y foto de evidencia.</div>';
    return;
  }
  const fr=new FileReader();
  fr.onload=e=>{
+   o.diagnosis=diagnosis;
+   o.recommendedWork=recommended;
    o.partRequests=o.partRequests||[];
-   o.partRequests.push({id:"pr"+Date.now(),type,item,qty,reason,photo:e.target.result,status:"Pendiente",requestedAt:new Date().toISOString()});
+   o.partRequests.push({
+     id:"pr"+Date.now(),type,item,qty,reason,
+     photo:e.target.result,status:"Pendiente",
+     requestedAt:new Date().toISOString()
+   });
    o.status="Esperando presupuesto";
    save();
-   if(msg)msg.innerHTML='<div class="ok">✓ Solicitud de '+esc(type.toLowerCase())+' enviada al Jefe de Pista.</div>';
+   if(msg)msg.innerHTML='<div class="ok">✓ Diagnóstico guardado y solicitud enviada al Jefe de Pista.</div>';
    document.getElementById("ri_"+id).value="";
    document.getElementById("rq_"+id).value="1";
    document.getElementById("rr_"+id).value="";
