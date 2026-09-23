@@ -810,7 +810,7 @@ async function createOrder(){
   db.orders.push(order);
   save();
   currentOrder=order;
-  orderMsg.innerHTML='<div class="ok">✓ <b>Orden de Trabajo #'+String(orderNumber).padStart(5,"0")+'</b> creada y registrada en Historial.</div><div class="actions"><button onclick="show("historial")">📋 Ver orden en Historial</button></div>';
+  orderMsg.innerHTML='<div class="ok">✓ <b>Orden de Trabajo #'+String(orderNumber).padStart(5,"0")+'</b> creada y registrada en Historial.</div><div class="actions"><button onclick="show(\'historial\')">📋 Ver orden en Historial</button></div>';
   document.getElementById("receptionForm").scrollIntoView({behavior:"smooth",block:"center"});
 }
 
