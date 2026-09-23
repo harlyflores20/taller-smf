@@ -437,6 +437,26 @@ let db=JSON.parse(localStorage.getItem(KEY)||"null")||{users:defaultUsers,custom
 if(!db.users||!db.users.length)db.users=defaultUsers;
 if(!db.users.some(u=>u.id==="tec1")){db.users.push({id:"tec1",name:"Técnico1",user:"tecnico1",pass:"tecnico1123",role:"Técnico",active:true});localStorage.setItem(KEY,JSON.stringify(db));}
 if(!db.company)db.company={name:"Servicios Múltiples Flores",rtn:"",location:"",phone:"",whatsapp:"",logo:"",agencies:[]};
+if(!Array.isArray(db.orders))db.orders=[];
+/* Normalizar numeración de OT: las órdenes antiguas sin número válido reciben un consecutivo. */
+(function normalizeWorkOrderNumbers(){
+  const used=new Set();
+  db.orders.forEach(o=>{
+    const n=Number(o.orderNumber);
+    if(Number.isInteger(n)&&n>0&&!used.has(n)){o.orderNumber=n;used.add(n);}
+    else{o.orderNumber=null;}
+  });
+  let next=1;
+  db.orders.forEach(o=>{
+    if(!o.orderNumber){
+      while(used.has(next))next++;
+      o.orderNumber=next++;
+      used.add(o.orderNumber);
+    }
+  });
+  localStorage.setItem(KEY,JSON.stringify(db));
+})();
+
 if(!Array.isArray(db.company.agencies))db.company.agencies=[];
 if(typeof db.company.logo!=="string")db.company.logo="";
 let current=null,currentVehicle=null,currentOrder=null;
@@ -771,7 +791,7 @@ function readFileDataURL(file){
   });
 }
 
-async function nextWorkOrderNumber(){
+function nextWorkOrderNumber(){
   const nums=db.orders.map(o=>Number(o.orderNumber||0)).filter(n=>n>0);
   const max=Math.max(0,...nums);
   return max+1;
