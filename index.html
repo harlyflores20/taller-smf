@@ -1036,10 +1036,11 @@ function renderPending(){
  if(role()==="Técnico"){pendingList.innerHTML="";return}
  const rows=[];
  db.orders.forEach(o=>{
+   if(o.diagnosisOnly||o.status==="Diagnóstico pendiente de cobro"||o.budget?.status==="No realizado"||o.status==="Vehículo listo"||o.ready===true)return;
    let v=vehicle(o.vehicleId),c=customer(v?.customerId);
    (o.partRequests||[]).filter(r=>!["Aprobado","Completado","Cancelado","Devuelta","En presupuesto"].includes(r.status)).forEach(r=>rows.push(`<div class="card pending"><h3>🔧 Solicitud de repuesto</h3><b>OT #${String(o.orderNumber||0).padStart(5,"0")} · ${esc(v?.plate)} · ${esc(c?.name||"")}</b><p><b>${esc(r.item)}</b> × ${esc(r.qty)}<br>${esc(r.reason)}</p><button onclick="openBudget('${o.id}')">Abrir solicitud</button></div>`));
    if(o.budget?.status==="Enviado"||o.status==="Esperando aprobación")rows.push(`<div class="card pending" style="border-left:4px solid #d97706"><h3>🟡 OT #${String(o.orderNumber||0).padStart(5,"0")} · Esperando aprobación</h3><b>🚗 ${esc(v?.plate||"")} · 👤 ${esc(c?.name||"")}</b><p>La cotización fue enviada al cliente. La Orden de Trabajo permanece en <b>Pendientes</b> mientras esperamos su respuesta.</p><button onclick="openBudget('${o.id}')">Ver presupuesto</button></div>`);
-   if(o.budget?.status==="No aprobado"||o.status==="Cotización no aprobada")rows.push(`<div class="card pending" style="border-left:4px solid #b91c1c"><h3>🔴 OT #${String(o.orderNumber||0).padStart(5,"0")} · Modificar cotización</h3><b>🚗 ${esc(v?.plate||"")} · 👤 ${esc(c?.name||"")}</b><div class="notice" style="margin-top:10px">🔔 <b>Notificación:</b> el cliente no aprobó la cotización. La OT permanece en <b>Pendientes</b> para darle seguimiento y hablar con el cliente.</div><div class="actions"><button class="success" onclick="openBudget('${o.id}')">🔄 Modificar cotización</button><button class="danger" onclick="clientDidNotProceed('${o.id}')">🚫 Cliente no realizará el trabajo</button></div></div>`);if(o.ready)rows.push(`<div class="card pending"><h3>🚗 Vehículo listo</h3><b>${esc(v?.plate)}</b><p>Trabajo terminado. Listo para cobro/entrega.</p></div>`);
+   if(o.budget?.status==="No aprobado"||o.status==="Cotización no aprobada")rows.push(`<div class="card pending" style="border-left:4px solid #b91c1c"><h3>🔴 OT #${String(o.orderNumber||0).padStart(5,"0")} · Modificar cotización</h3><b>🚗 ${esc(v?.plate||"")} · 👤 ${esc(c?.name||"")}</b><div class="notice" style="margin-top:10px">🔔 <b>Notificación:</b> el cliente no aprobó la cotización. La OT permanece en <b>Pendientes</b> para darle seguimiento y hablar con el cliente.</div><div class="actions"><button class="success" onclick="openBudget('${o.id}')">🔄 Modificar cotización</button><button class="danger" onclick="clientDidNotProceed('${o.id}')">🚫 Cliente no realizará el trabajo</button></div></div>`);
  });pendingList.innerHTML=rows.join("")||'<div class="card">🎉 No hay pendientes.</div>'
 }
 function openBudget(id){currentOrder=db.orders.find(o=>o.id===id);show("presupuestos");renderBudgetDetail(id)}
@@ -1047,6 +1048,11 @@ function renderBudgets(){
  if(!["Gerente","Jefe de Pista"].includes(role())){budgetArea.innerHTML="";return;}
  const list=db.orders.filter(function(o){
    return isActiveCustomerForVehicle(vehicle(o.vehicleId)) &&
+     !o.diagnosisOnly &&
+     o.status!=="Diagnóstico pendiente de cobro" &&
+     o.budget?.status!=="No realizado" &&
+     o.status!=="Vehículo listo" &&
+     o.ready!==true &&
      (o.budget?.status==="No aprobado" || (o.partRequests||[]).some(function(r){return r.status==="Pendiente"||r.status==="En presupuesto";}));
  });
  budgetArea.innerHTML=list.map(function(o){
