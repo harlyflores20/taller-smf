@@ -1402,7 +1402,7 @@ function openFinalization(id){
 }
 function renderNotificarFinalizacion(){
  const root=document.getElementById("notificarFinalizacionArea");if(!root||!["Gerente","Jefe de Pista"].includes(role()))return;
- const orders=db.orders.filter(function(o){return isActiveCustomerForVehicle(vehicle(o.vehicleId))&&(o.status==="Trabajo terminado"||o.status==="Pendiente de notificar finalización"||o.diagnosisOnly===true)&&!o.finalInspection?.approved;});
+ const orders=db.orders.filter(function(o){return (o.workflowStage==="notificarFinalizacion" || isActiveCustomerForVehicle(vehicle(o.vehicleId))&&(o.status==="Trabajo terminado"||o.status==="Pendiente de notificar finalización"||o.diagnosisOnly===true))&&!o.finalInspection?.approved;});
  const cards=orders.map(function(o){
   const v=vehicle(o.vehicleId)||{},c=customer(v.customerId)||{};
   return '<div class="card" style="margin:10px 0;border-left:4px solid #d97706"><div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap"><div><h3 style="margin:0">📋 OT #'+String(o.orderNumber||0).padStart(5,"0")+'</h3><div><b>🚗 '+esc(v.plate||"")+'</b> · '+esc(v.make||"")+' '+esc(v.model||"")+' '+esc(v.year||"")+'</div><div class="muted">👤 '+esc(c.name||"")+' · '+(o.diagnosisOnly?"Diagnóstico sin reparación":"Trabajo técnico terminado")+'</div></div><button class="success" onclick="openNotificarFinalizacion(\''+o.id+'\')">🔔 Notificar</button></div></div>';
@@ -1450,7 +1450,7 @@ function closeWhatsappNotify(){document.getElementById("whatsappNotifyModal")?.r
 function returnToEvidenceFromNotify(id){
  const o=db.orders.find(function(x){return x.id===id;});if(!o)return;
  if(!confirm("¿Regresar esta OT a Evidencia? Se conservará la orden y el trabajo terminado para corregir la evidencia."))return;
- o.status="Trabajo terminado";o.ready=false;o.readyNotified=false;delete o.readyNotifiedAt;delete o.finalInspection;o.finalizationPending=true;
+ o.status="Trabajo terminado";delete o.workflowStage;o.ready=false;o.readyNotified=false;delete o.readyNotifiedAt;delete o.finalInspection;o.finalizationPending=true;
  save();closeWhatsappNotify();show("evidencia");renderEvidence();
 }
 function sendReadyWhatsApp(id){
@@ -1461,6 +1461,7 @@ function sendReadyWhatsApp(id){
  if(!msg)return alert("El mensaje no puede estar vacío.");
  window.open("https://wa.me/"+phone+"?text="+encodeURIComponent(msg),"_blank");
  o.status="Listo para cobro";
+ delete o.workflowStage;
  o.ready=true;
  o.readyNotified=true;
  o.readyNotifiedAt=new Date().toISOString();
@@ -1487,6 +1488,7 @@ function returnToNotificar(id){
   * Así no depende de estados intermedios ni de una inspección anterior.
   */
  o.status="Trabajo terminado";
+ o.workflowStage="notificarFinalizacion";
  o.ready=false;
  o.readyNotified=false;
  o.finalizationPending=false;
