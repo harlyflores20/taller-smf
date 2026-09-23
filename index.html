@@ -685,13 +685,89 @@ function changeVehicleOwner(id){const v=vehicle(id);if(!v)return;const old=custo
 function saveVehicleOwner(id){const v=vehicle(id),newOwner=document.getElementById("newOwnerId")?.value;if(!v||!newOwner)return alert("Seleccione el nuevo propietario.");v.customerId=newOwner;v.updatedAt=new Date().toISOString();save();openCustomer(newOwner);}
 function openVehicleHistory(id){const v=vehicle(id);if(!v)return;currentVehicle=v;show("historial");historyQ.value=v.plate;renderHistory();}
 function renderCustomers(){
-  if(!document.getElementById("customerList"))return;
-  const activeCustomers=db.customers.filter(function(c){return c.active!==false;}),activeVehicles=db.vehicles.filter(function(v){return v.active!==false;});
-  clientCount.textContent=db.customers.length;vehicleCount.textContent=db.vehicles.length;activeVehicleCount.textContent=activeVehicles.length;
+  const list=document.getElementById("customerList");
+  if(!list)return;
+  const activeCustomers=db.customers.filter(function(c){return c.active!==false;});
+  const activeVehicles=db.vehicles.filter(function(v){return v.active!==false;});
+
+  if(document.getElementById("clientCount"))clientCount.textContent=db.customers.length;
+  if(document.getElementById("vehicleCount"))vehicleCount.textContent=db.vehicles.length;
+  if(document.getElementById("activeVehicleCount"))activeVehicleCount.textContent=activeVehicles.length;
+
   const now=new Date(),month=now.getMonth(),year=now.getFullYear();
-  const ids=new Set(db.orders.filter(function(o){const d=parseOrderDate(o.date);return d&&d.getMonth()===month&&d.getFullYear()===year;}).map(function(o){const v=vehicle(o.vehicleId);return v?v.customerId:null;}).filter(Boolean));
-  monthClientCount.textContent=ids.size;
-  customerList.innerHTML=activeCustomers.length?'<div class="notice" style="margin-bottom:12px">👥 <b>'+activeCustomers.length+'</b> cliente(s) registrados en el sistema · 🚗 <b>'+activeVehicles.length+'</b> vehículo(s) activos.</div><div class="grid g2">'+activeCustomers.map(function(c){const vs=db.vehicles.filter(function(v){return v.customerId===c.id;}),ods=db.orders.filter(function(o){return vs.some(function(v){return v.id===o.vehicleId;});}).sort(function(x,y){return String(y.date).localeCompare(String(x.date));});return '<div class="card" style="margin:0;border-left:4px solid var(--brand)"><h3 style="margin:0 0 6px">👤 '+esc(c.name)+'</h3><div class="muted">'+esc(c.type||"Persona")+' · 📞 '+esc(c.phone||"Sin teléfono")+(c.rtn?' · RTN '+esc(c.rtn):"")+'</div><div style="margin-top:8px">🚗 <b>'+vs.length+'</b> vehículo(s) registrado(s)</div><div class="muted">Última orden: '+esc(ods[0]?.date||"—")+'</div><div class="actions"><button onclick="openCustomer(\''+c.id+'\')">👁️ Ver cliente</button><button class="secondary" onclick="editCustomer(\''+c.id+'\')">✏️ Editar</button>'+(role()==="Gerente"?'<button class="danger" onclick="deleteCustomer(\''+c.id+'\')">🗑️ Eliminar</button>':'')+</div></div>';}).join("")+'</div>':'<div class="muted">Todavía no hay clientes registrados.</div>';
+  const ids=new Set(db.orders.filter(function(o){
+    const d=parseOrderDate(o.date);
+    return d&&d.getMonth()===month&&d.getFullYear()===year;
+  }).map(function(o){
+    const v=vehicle(o.vehicleId);
+    return v?v.customerId:null;
+  }).filter(Boolean));
+  if(document.getElementById("monthClientCount"))monthClientCount.textContent=ids.size;
+
+  if(!activeCustomers.length){
+    list.innerHTML='<div class="muted">Todavía no hay clientes registrados.</div>';
+    return;
+  }
+
+  list.innerHTML='<div class="notice" style="margin-bottom:12px">👥 <b>'+activeCustomers.length+'</b> cliente(s) registrados en el sistema · 🚗 <b>'+activeVehicles.length+'</b> vehículo(s) activos.</div><div id="customerCards" class="grid g2"></div>';
+  const cards=document.getElementById("customerCards");
+
+  activeCustomers.forEach(function(c){
+    const vs=db.vehicles.filter(function(v){return v.customerId===c.id;});
+    const ods=db.orders.filter(function(o){
+      return vs.some(function(v){return v.id===o.vehicleId;});
+    }).sort(function(a,b){return String(b.date||"").localeCompare(String(a.date||""));});
+
+    const card=document.createElement("div");
+    card.className="card";
+    card.style.margin="0";
+    card.style.borderLeft="4px solid var(--brand)";
+
+    const title=document.createElement("h3");
+    title.style.margin="0 0 6px";
+    title.textContent="👤 "+(c.name||"");
+    card.appendChild(title);
+
+    const info=document.createElement("div");
+    info.className="muted";
+    info.textContent=(c.type||"Persona")+" · 📞 "+(c.phone||"Sin teléfono")+(c.rtn?" · RTN "+c.rtn:"");
+    card.appendChild(info);
+
+    const vehiclesInfo=document.createElement("div");
+    vehiclesInfo.style.marginTop="8px";
+    vehiclesInfo.textContent="🚗 "+vs.length+" vehículo(s) registrado(s)";
+    card.appendChild(vehiclesInfo);
+
+    const last=document.createElement("div");
+    last.className="muted";
+    last.textContent="Última orden: "+(ods[0]?.date||"—");
+    card.appendChild(last);
+
+    const actions=document.createElement("div");
+    actions.className="actions";
+
+    const viewBtn=document.createElement("button");
+    viewBtn.textContent="👁️ Ver cliente";
+    viewBtn.onclick=function(){openCustomer(c.id);};
+    actions.appendChild(viewBtn);
+
+    const editBtn=document.createElement("button");
+    editBtn.className="secondary";
+    editBtn.textContent="✏️ Editar";
+    editBtn.onclick=function(){editCustomer(c.id);};
+    actions.appendChild(editBtn);
+
+    if(role()==="Gerente"){
+      const deleteBtn=document.createElement("button");
+      deleteBtn.className="danger";
+      deleteBtn.textContent="🗑️ Eliminar";
+      deleteBtn.onclick=function(){deleteCustomer(c.id);};
+      actions.appendChild(deleteBtn);
+    }
+
+    card.appendChild(actions);
+    cards.appendChild(card);
+  });
 }
 function populateTech(){
   const el=document.getElementById("assignTech");if(!el)return;
