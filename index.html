@@ -548,7 +548,7 @@ function refresh(){
   if(document.getElementById("kCash"))kCash.textContent=money(cash);if(document.getElementById("kCard"))kCard.textContent=money(card);if(document.getElementById("kTransfer"))kTransfer.textContent=money(transfer);
   if(document.getElementById("gerenteIncome"))gerenteIncome.style.display=role()==="Gerente"?"block":"none";
   if(document.getElementById("recent"))recent.innerHTML=db.orders.slice(-6).reverse().map(function(o){return '<div class="card" style="margin:7px 0"><b>'+esc(vehicle(o.vehicleId)?.plate||"")+"</b> · "+esc(o.status)+" · "+esc(o.date)+"</div>";}).join("")||'<div class="muted">Sin actividad.</div>';
-  if(document.getElementById("pendingList"))renderPending();if(document.getElementById("techOrders"))renderTech();if(document.getElementById("budgetArea"))renderBudgets();
+  if(document.getElementById("pendingList"))renderPending();if(document.getElementById("techOrders"))renderTech();if(document.getElementById("budgetArea"))renderBudgets();if(document.getElementById("historyList"))renderHistory();
   if(role()==="Administrador"||role()==="Gerente")renderUsers();
   if(role()==="Gerente"){renderFinance();renderReports();renderCompany();}if(document.getElementById("customerList"))renderCustomers();
   populateTech();
@@ -610,7 +610,15 @@ function renderCustomers(){
   monthClientCount.textContent=ids.size;
   customerList.innerHTML=activeCustomers.length?'<table><tr><th>Cliente</th><th>Teléfono</th><th>RTN</th><th>Vehículos</th><th>Última orden</th><th>Acciones</th></tr>'+activeCustomers.map(function(c){const vs=db.vehicles.filter(function(v){return v.customerId===c.id;}),ods=db.orders.filter(function(o){return vs.some(function(v){return v.id===o.vehicleId;});}).sort(function(x,y){return String(y.date).localeCompare(String(x.date));});return '<tr><td><b>'+esc(c.name)+'</b><br><span class="muted">'+esc(c.type||"Persona")+'</span></td><td>'+esc(c.phone)+'</td><td>'+esc(c.rtn||"—")+'</td><td>'+vs.length+'</td><td>'+esc(ods[0]?.date||"—")+'</td><td><button onclick="openCustomer(\''+c.id+'\')">👁️ Ver</button> <button class="secondary" onclick="editCustomer(\''+c.id+'\')">✏️ Editar</button></td></tr>';}).join("")+'</table>':'<div class="muted">Todavía no hay clientes registrados.</div>';
 }
-function populateTech(){if(!assignTech)return;assignTech.innerHTML=db.users.filter(u=>u.role==="Técnico"&&u.active).map(u=>`<option value="${u.id}">${esc(u.name)}</option>`).join("")}
+function populateTech(){
+  const el=document.getElementById("assignTech");if(!el)return;
+  if(!db.users.some(u=>u.id==="tec1")){
+    db.users.push({id:"tec1",name:"Técnico1",user:"tecnico1",pass:"tecnico1123",role:"Técnico",active:true});
+    localStorage.setItem(KEY,JSON.stringify(db));
+  }
+  const techs=db.users.filter(u=>u.role==="Técnico"&&u.active);
+  el.innerHTML=techs.length?techs.map(u=>'<option value="'+u.id+'">'+esc(u.name)+'</option>').join(""):'<option value="">No hay técnicos activos</option>';
+}
 function receptionPhotoSlots(){
   return ["Frente","Atrás","Izquierda","Derecha","Tablero / kilometraje"];
 }
@@ -802,7 +810,7 @@ async function createOrder(){
   db.orders.push(order);
   save();
   currentOrder=order;
-  orderMsg.innerHTML='<div class="ok">✓ <b>Orden de Trabajo #'+String(orderNumber).padStart(5,"0")+'</b> creada. Vehículo recibido y técnico asignado.</div>';
+  orderMsg.innerHTML='<div class="ok">✓ <b>Orden de Trabajo #'+String(orderNumber).padStart(5,"0")+'</b> creada y registrada en Historial.</div><div class="actions"><button onclick="show("historial")">📋 Ver orden en Historial</button></div>';
   document.getElementById("receptionForm").scrollIntoView({behavior:"smooth",block:"center"});
 }
 
@@ -812,6 +820,18 @@ function newReceptionClear(){
   rMatches.innerHTML="";
   rSearch.value="";
   currentVehicle=null;
+}
+function renderHistory(){
+  const el=document.getElementById("historyList");if(!el)return;
+  const q=String(document.getElementById("historyQ")?.value||"").trim().toUpperCase();
+  const rows=db.orders.filter(o=>{
+    const v=vehicle(o.vehicleId),c=customer(v?.customerId);
+    return !q || [o.orderNumber,o.status,v?.plate,v?.make,v?.model,c?.name,c?.phone,c?.rtn].some(x=>String(x??"").toUpperCase().includes(q));
+  }).slice().sort((a,b)=>Number(b.orderNumber||0)-Number(a.orderNumber||0));
+  el.innerHTML=rows.length?rows.map(o=>{
+    const v=vehicle(o.vehicleId)||{},c=customer(v.customerId)||{},t=tech(o.technicianId)||{};
+    return '<div class="card" style="margin:10px 0;border-left:4px solid var(--brand)"><div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap"><div><h3 style="margin:0">📋 OT #'+String(o.orderNumber||0).padStart(5,"0")+'</h3><div><b>🚗 '+esc(v.plate||"")+'</b> · '+esc(v.make||"")+' '+esc(v.model||"")+' '+esc(v.year||"")+'</div><div class="muted">👤 '+esc(c.name||"")+' · Técnico: '+esc(t.name||"No asignado")+'</div></div><div>'+status(o.status)+'</div></div><p style="margin-bottom:0"><b>Fecha:</b> '+esc(o.date||"")+' · <b>Motivo:</b> '+esc(o.reason||"")+'</p></div>';
+  }).join(""):'<div class="card"><div class="muted">No hay órdenes de trabajo registradas.</div></div>';
 }
 function renderPending(){
  if(role()==="Técnico"){pendingList.innerHTML="";return}
