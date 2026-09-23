@@ -554,6 +554,13 @@ function refresh(){
   if(role()==="Gerente"){renderFinance();renderReports();renderCompany();}if(document.getElementById("customerList"))renderCustomers();
   populateTech();
 }
+function parseOrderDate(value){
+  if(!value)return null;
+  const d=new Date(value);
+  if(!isNaN(d.getTime()))return d;
+  const m=String(value).match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  return m?new Date(Number(m[3]),Number(m[2])-1,Number(m[1])):null;
+}
 function customer(id){return db.customers.find(x=>x.id===id)}
 function vehicle(id){return db.vehicles.find(x=>x.id===id)}
 function tech(id){return db.users.find(x=>x.id===id)}
