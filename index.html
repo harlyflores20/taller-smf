@@ -1049,9 +1049,13 @@ function renderBudgets(){
  const list=db.orders.filter(function(o){
    return isActiveCustomerForVehicle(vehicle(o.vehicleId)) &&
      !o.diagnosisOnly &&
-     o.status!=="Diagnóstico pendiente de cobro" &&
+     o.budget?.status!=="Autorizado" &&
      o.budget?.status!=="No realizado" &&
+     o.status!=="Trabajo autorizado - Finalización" &&
+     o.status!=="Trabajo terminado" &&
+     o.status!=="Diagnóstico pendiente de cobro" &&
      o.status!=="Vehículo listo" &&
+     o.status!=="Entregado" &&
      o.ready!==true &&
      (o.budget?.status==="No aprobado" || (o.partRequests||[]).some(function(r){return r.status==="Pendiente"||r.status==="En presupuesto";}));
  });
