@@ -331,7 +331,7 @@ h1,h2,h3{margin-top:0}.grid{display:grid;gap:14px}.g2{grid-template-columns:repe
 
       <section id="trabajoTecnicos" class="view"><h2>🧰 Trabajo de técnicos</h2><div class="notice">Vista de seguimiento para Gerente: órdenes recibidas y avance del Técnico.</div><div id="techOverview"></div></section>
 <section id="tecnico" class="view">
-        <h2>🔧 Mi trabajo</h2>
+        <h2>🔧 Diagnóstico</h2>
         <div class="notice">Solo aparecen vehículos asignados a este usuario. No se muestran precios ni costos.</div>
         <div id="techOrders"></div>
       </section>
@@ -506,14 +506,14 @@ function populateVehicleYears(makeId,modelId,yearId,preserveYear=""){
 function save(){localStorage.setItem(KEY,JSON.stringify(db));refresh()}
 function role(){return current?.role}
 function allowedNav(){
- const common=["dashboard","clientes","orden","pendientes","historial"];
- if(role()==="Gerente")return [...common,"tecnico","trabajoTecnicos","presupuestos","finanzas","reportes","usuarios","configuracion"];
+ const common=["dashboard","clientes","orden","tecnico","pendientes","historial"];
+ if(role()==="Gerente")return [...common,"trabajoTecnicos","presupuestos","finanzas","reportes","usuarios","configuracion"];
  if(role()==="Administrador")return ["dashboard","usuarios"];
  if(role()==="Jefe de Pista")return [...common,"presupuestos"];
  if(role()==="Técnico")return ["dashboard","tecnico"];
  return [];
 }
-const titles={dashboard:"Inicio",clientes:"Clientes / Vehículos",orden:"Nueva orden",pendientes:"Pendientes",historial:"Historial",tecnico:"Mi trabajo",trabajoTecnicos:"Trabajo de técnicos",usuarios:"Usuarios",presupuestos:"Presupuestos",finanzas:"Finanzas",reportes:"Reportes",configuracion:"Configuración"};
+const titles={dashboard:"Inicio",clientes:"Clientes / Vehículos",orden:"Nueva orden",pendientes:"Pendientes",historial:"Historial",tecnico:"Diagnóstico",trabajoTecnicos:"Trabajo de técnicos",usuarios:"Usuarios",presupuestos:"Presupuestos",finanzas:"Finanzas",reportes:"Reportes",configuracion:"Configuración"};
 function buildNav(){nav.innerHTML=allowedNav().map(x=>`<button class="navbtn" data-view="${x}" onclick="show('${x}')">${({dashboard:"🏠",clientes:"👥",orden:"🚗",pendientes:"🔴",historial:"📋",tecnico:"🔧",usuarios:"⚙️",presupuestos:"💰",finanzas:"💵",reportes:"📊",configuracion:"⚙️"}[x]||"•")} ${titles[x]}</button>`).join("")}
 function show(id){if(!allowedNav().includes(id))return;document.querySelectorAll(".view").forEach(v=>v.classList.remove("active"));document.getElementById(id).classList.add("active");document.querySelectorAll(".navbtn").forEach(b=>b.classList.toggle("active",b.dataset.view===id));refresh()}
 function doLogin(){const u=document.getElementById("loginUser").value.trim(),p=document.getElementById("loginPass").value;const x=db.users.find(v=>v.user===u&&v.pass===p&&v.active);const msg=document.getElementById("loginMsg");if(!x){msg.textContent="Usuario o contraseña incorrectos.";msg.classList.remove("hidden");return}current=x;document.getElementById("login").style.display="none";document.getElementById("app").style.display="block";document.getElementById("who").textContent=`· ${x.name} · ${x.role}`;buildNav();show(allowedNav()[0])}
