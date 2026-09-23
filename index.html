@@ -1284,7 +1284,7 @@ function markDelivered(id){
 function renderTech(){
  if(!["Técnico","Gerente"].includes(role()))return;
  const os=db.orders.filter(o=>(role()==="Gerente"||o.technicianId===current.id)&&!["Entregado","Cancelado"].includes(o.status)&&isActiveCustomerForVehicle(vehicle(o.vehicleId)));
- const diagnosisOrders=os.filter(o=>!o.finalizationPending&&o.budget?.status!=="Autorizado"&&!["Esperando presupuesto","Trabajo autorizado - Finalización","Trabajo terminado"].includes(o.status));
+ const diagnosisOrders=os.filter(o=>!o.finalizationPending&&o.budget?.status!=="Autorizado"&&!(o.partRequests||[]).length&&!["Esperando presupuesto","Trabajo autorizado - Finalización","Trabajo terminado"].includes(o.status));
  const cards=diagnosisOrders.map(o=>{
    const v=vehicle(o.vehicleId)||{};
    return '<div class="card" style="margin:10px 0;border-left:4px solid var(--brand)"><div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap"><div><h3 style="margin:0">📋 OT #'+String(o.orderNumber||0).padStart(5,"0")+'</h3><div><b>🚗 '+esc(v.plate||"")+'</b> · '+esc(v.make||"")+' '+esc(v.model||"")+' '+esc(v.year||"")+'</div></div><button class="success" onclick="openDiagnosis(\''+o.id+'\')">🔧 Diagnóstico</button></div></div>';
