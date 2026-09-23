@@ -528,10 +528,28 @@ function renderBranding(){
   const loginName=document.getElementById("loginCompanyName");
   const topLogo=document.getElementById("topLogo");
   const topName=document.getElementById("topCompanyName");
+
   if(loginName)loginName.textContent=name;
   if(topName)topName.textContent=name;
-  if(loginLogo)loginLogo.innerHTML=logo?'<img src="'+esc(logo)+'" alt="Logo" style="max-width:220px;max-height:95px;object-fit:contain">':'';
-  if(topLogo)topLogo.innerHTML=logo?'<img src="'+esc(logo)+'" alt="Logo" style="max-width:42px;max-height:42px;object-fit:contain;border-radius:6px">':'';
+
+  [loginLogo,topLogo].forEach(function(box){
+    if(!box)return;
+    box.innerHTML="";
+    if(!logo)return;
+    const img=document.createElement("img");
+    img.src=logo;
+    img.alt="Logo";
+    img.style.objectFit="contain";
+    if(box===loginLogo){
+      img.style.maxWidth="220px";
+      img.style.maxHeight="95px";
+    }else{
+      img.style.maxWidth="42px";
+      img.style.maxHeight="42px";
+      img.style.borderRadius="6px";
+    }
+    box.appendChild(img);
+  });
 }
 function doLogin(){const u=document.getElementById("loginUser").value.trim(),p=document.getElementById("loginPass").value;const x=db.users.find(v=>v.user===u&&v.pass===p&&v.active);const msg=document.getElementById("loginMsg");if(!x){msg.textContent="Usuario o contraseña incorrectos.";msg.classList.remove("hidden");return}current=x;document.getElementById("login").style.display="none";document.getElementById("app").style.display="block";document.getElementById("who").textContent=`· ${x.name} · ${x.role}`;buildNav();show(allowedNav()[0])}
 function logout(){current=null;app.style.display="none";login.style.display="flex";loginPass.value="";loginMsg.classList.add("hidden")}
