@@ -507,7 +507,7 @@ function save(){localStorage.setItem(KEY,JSON.stringify(db));refresh()}
 function role(){return current?.role}
 function allowedNav(){
  const common=["dashboard","clientes","orden","pendientes","historial"];
- if(role()==="Gerente")return [...common,"trabajoTecnicos","presupuestos","finanzas","reportes","usuarios","configuracion"];
+ if(role()==="Gerente")return [...common,"tecnico","trabajoTecnicos","presupuestos","finanzas","reportes","usuarios","configuracion"];
  if(role()==="Administrador")return ["dashboard","usuarios"];
  if(role()==="Jefe de Pista")return [...common,"presupuestos"];
  if(role()==="Técnico")return ["dashboard","tecnico"];
@@ -1039,8 +1039,8 @@ function clientApprove(id){
 }
 function clientNo(id){let o=db.orders.find(x=>x.id===id);if(o.budget.status==="Autorizado")return;o.budget.status="Atencion";o.budget.customerResponse="No aprobado";o.status="Atención al cliente";save();document.body.innerHTML=`<div class="public">${companyHeader()}<div class="card"><h1>✓ Hemos recibido su respuesta</h1><p>Servicio al Cliente revisará el caso y se comunicará con usted para aclarar sus dudas.</p></div></div>`}
 function renderTech(){
- if(role()!=="Técnico")return;
- const os=db.orders.filter(o=>o.technicianId===current.id&&!["Entregado","Cancelado"].includes(o.status));
+ if(!["Técnico","Gerente"].includes(role()))return;
+ const os=db.orders.filter(o=>(role()==="Gerente"||o.technicianId===current.id)&&!["Entregado","Cancelado"].includes(o.status));
  const solicitud=os.filter(o=>!o.finalizationPending);
  const final=os.filter(o=>o.finalizationPending && !o.ready);
 
@@ -1126,7 +1126,7 @@ function requestPart(id){
  fr.readAsDataURL(file.files[0]);
 }
 function finishTech(id){
- let o=db().orders.find(x=>x.id===id);
+ let o=db.orders.find(x=>x.id===id);
  if(!o||o.budget?.status!=="Autorizado")return alert("El trabajo debe tener un presupuesto autorizado antes de finalizar.");
  const ids=["fp1_"+id,"fp2_"+id,"fp3_"+id,"fpd_"+id];
  const files=ids.map(x=>document.getElementById(x)?.previousElementSibling?.files?.[0]).filter(Boolean);
