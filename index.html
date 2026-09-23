@@ -1208,11 +1208,20 @@ function publicCard(o){
      '<div style="margin-bottom:12px"><b>Diagnóstico / hallazgos</b><div style="margin-top:5px">'+esc(diagnosis||"Pendiente de diagnóstico")+'</div></div>'+
      (recommended?'<div><b>Trabajo recomendado</b><div style="margin-top:5px">'+esc(recommended)+'</div></div>':'')+
    '</div>'+
-   (parts.length?'<div class="card"><h3>🔧 Repuestos y materiales solicitados</h3>'+parts.map(function(r){return '<div class="part-request-card">'+
-     '<div class="part-head"><b>'+esc(r.item||"")+'</b><span>'+esc(r.qty||1)+' ud. · '+esc(r.type||"Repuesto")+'</span></div>'+
-     (r.photo?'<img class="part-photo" src="'+esc(r.photo)+'" alt="Pieza dañada">':'')+
-     '<div class="muted" style="margin-top:6px">'+esc(r.reason||"")+'</div>'+
-   '</div>';}).join("")+'</div>':'')+
+   (parts.length?'<div class="card"><h3>🔧 Repuestos y materiales solicitados</h3>'+parts.map(function(r){
+     const quote=r.quote||"";
+     const quoteIsPdf=String(quote).toLowerCase().startsWith("data:application/pdf");
+     return '<div class="part-request-card">'+
+       '<div class="part-head"><b>'+esc(r.item||"")+'</b><span>'+esc(r.qty||1)+' ud. · '+esc(r.type||"Repuesto")+'</span></div>'+
+       '<div style="margin-top:10px"><b>📸 Evidencia de la pieza dañada</b>'+
+       (r.photo?'<div style="margin-top:8px"><img class="part-photo" src="'+esc(r.photo)+'" alt="Pieza dañada"></div>':'<div class="muted" style="margin-top:6px">No se adjuntó fotografía.</div>')+
+       '</div>'+
+       '<div class="muted" style="margin-top:10px"><b>Motivo:</b> '+esc(r.reason||"")+'</div>'+
+       '<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--line)"><b>📄 Cotización de la agencia</b>'+
+       (quote?(quoteIsPdf?'<div style="margin-top:8px"><iframe src="'+esc(quote)+'" style="width:100%;height:420px;border:1px solid var(--line);border-radius:8px"></iframe></div><div style="margin-top:8px"><a href="'+esc(quote)+'" target="_blank" rel="noopener">📄 Abrir cotización PDF</a></div>':'<div style="margin-top:8px"><img src="'+esc(quote)+'" alt="Cotización de agencia" style="max-width:100%;max-height:500px;border-radius:8px;border:1px solid var(--line);object-fit:contain"></div>'):'<div class="muted" style="margin-top:6px">No se adjuntó cotización de agencia.</div>')+
+       '</div>'+
+     '</div>';
+   }).join("")+'</div>':'')+
    '<div class="card" style="margin-top:15px;background:#f8fafc">'+
      '<h3>1. Datos para autorización</h3>'+
      '<div class="grid g2">'+
