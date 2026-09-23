@@ -1061,7 +1061,7 @@ function budgetCard(o){
    return '<div class="card" style="margin:12px 0;border-left:4px solid var(--brand)"><div style="display:flex;justify-content:space-between;gap:10px;align-items:center"><h4 style="margin:0">🔩 Solicitud #'+(i+1)+' · '+esc(r.item)+'</h4><span class="muted">'+esc(r.status||"Pendiente")+'</span></div><p><b>Cantidad:</b> '+esc(r.qty)+' · <b>Motivo:</b> '+esc(r.reason)+'</p>'+(r.photo?'<div><img src="'+r.photo+'" style="max-width:180px;max-height:120px;border-radius:8px;object-fit:cover"></div>':'<div class="muted">Sin foto de pieza.</div>')+'<div class="grid g2" style="margin-top:10px"><div><label>Agencia donde se cotiza *</label><select id="ra_'+o.id+'_'+r.id+'" '+(locked?"disabled":"")+'><option value="">Seleccione...</option>'+agencyOptions(r.agencyId)+'</select></div><div><label>📄 Fotografía / PDF de cotización</label><input id="rqf_'+o.id+'_'+r.id+'" type="file" accept="image/*,.pdf" '+(locked?"disabled":"")+'></div></div>'+(a?'<div class="muted" style="margin-top:6px">Agencia: '+esc(a.name)+'</div>':'')+'<div class="actions"><button onclick="savePartRequest(&quot;'+o.id+'&quot;,&quot;'+r.id+'&quot;)" '+(locked?"disabled":"")+'>💾 Guardar datos de cotización</button></div></div>';
  }).join("");
  const total=Number(b.parts||0)+Number(b.materials||0)+Number(b.labor||0);
- return '<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><div><h2>💰 Realizar cotización · OT #'+String(o.orderNumber||0).padStart(5,"0")+'</h2><div><b>🚗 '+esc(v.plate||"")+'</b> · 👤 '+esc(c.name||"")+'</div></div><button class="secondary" onclick="renderBudgets()">← Volver a solicitudes</button></div></div><div class="card" style="margin-top:14px"><p><b>Motivo de ingreso:</b> '+esc(o.reason||"")+'</p><p><b>Diagnóstico del Técnico:</b> '+esc(o.diagnosis||"Sin diagnóstico registrado")+'</p><h3>🔧 Solicitudes del Técnico</h3>'+reqCards+'</div><div class="card" style="margin-top:14px"><h3>💵 Cotización al cliente</h3><div class="grid g3"><div><label>Repuestos *</label><input id="p_'+o.id+'" type="number" step=".01" value="'+Number(b.parts||0)+'" '+(locked?"disabled":"")+'></div><div><label>Materiales *</label><input id="m_'+o.id+'" type="number" step=".01" value="'+Number(b.materials||0)+'" '+(locked?"disabled":"")+'></div><div><label>Mano de obra *</label><input id="l_'+o.id+'" type="number" step=".01" value="'+Number(b.labor||0)+'" '+(locked?"disabled":"")+'></div></div><label>Nota para el cliente</label><input id="bn_'+o.id+'" value="'+esc(b.note||"")+'" '+(locked?"disabled":"")+'><div class="quote-total" style="margin-top:12px">Subtotal: '+money(total)+'</div>'+(locked?'<div class="ok">🔒 Presupuesto autorizado y bloqueado.</div>':'<div class="actions"><button class="secondary" onclick="returnToDiagnosis(&quot;'+o.id+'&quot;)">↩️ Regresar orden de trabajo a Diagnóstico</button><button class="success" onclick="sendBudget(&quot;'+o.id+'&quot;)">📤 Enviar cotización al cliente</button></div>')+'<div id="bm_'+o.id+'"></div></div>';
+ return '<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><div><h2>💰 Realizar cotización · OT #'+String(o.orderNumber||0).padStart(5,"0")+'</h2><div><b>🚗 '+esc(v.plate||"")+'</b> · 👤 '+esc(c.name||"")+'</div></div><button class="secondary" onclick="renderBudgets()">← Volver a solicitudes</button></div></div><div class="card" style="margin-top:14px"><p><b>Motivo de ingreso:</b> '+esc(o.reason||"")+'</p><p><b>Diagnóstico del Técnico:</b> '+esc(o.diagnosis||"Sin diagnóstico registrado")+'</p><h3>🔧 Solicitudes del Técnico</h3>'+reqCards+'</div><div class="card" style="margin-top:14px"><h3>💵 Cotización al cliente</h3><div class="grid g3"><div><label>Repuestos *</label><input id="p_'+o.id+'" type="number" step=".01" value="'+Number(b.parts||0)+'" '+(locked?"disabled":"")+'></div><div><label>Materiales *</label><input id="m_'+o.id+'" type="number" step=".01" value="'+Number(b.materials||0)+'" '+(locked?"disabled":"")+'></div><div><label>Mano de obra *</label><input id="l_'+o.id+'" type="number" step=".01" value="'+Number(b.labor||0)+'" '+(locked?"disabled":"")+'></div></div><label>Nota para el cliente</label><input id="bn_'+o.id+'" value="'+esc(b.note||"")+'" '+(locked?"disabled":"")+'><div class="quote-total" style="margin-top:12px">Subtotal: '+money(total)+'</div>'+(locked?'<div class="ok">🔒 Presupuesto autorizado y bloqueado.</div>':'<div class="actions"><button class="secondary" onclick="returnToDiagnosis(&quot;'+o.id+'&quot;)">↩️ Regresar orden de trabajo a Diagnóstico</button><button class="secondary" onclick="clientDidNotProceed(&quot;'+o.id+'&quot;)">🚫 Cliente no realizó trabajo</button><button class="success" onclick="sendBudget(&quot;'+o.id+'&quot;)">📤 Enviar cotización al cliente</button></div>')+'<div id="bm_'+o.id+'"></div></div>';
 }
 function renderBudgetDetail(id){const o=db.orders.find(function(x){return x.id===id;});if(o)budgetArea.innerHTML=budgetCard(o);}
 function returnToDiagnosis(id){
@@ -1090,15 +1090,49 @@ function getBudgetForm(id){
 
 function saveBudget(id){let o=db.orders.find(x=>x.id===id);if(o.budget?.status==="Autorizado")return alert("El presupuesto autorizado está bloqueado.");let b={...(o.budget||{}),...getBudgetForm(id)};o.budget=b;save();document.getElementById("bm_"+id).innerHTML="✓ Presupuesto guardado.";renderBudgets()}
 function sendBudget(id){
- let o=db.orders.find(x=>x.id===id);if(o.budget?.status==="Autorizado")return alert("El presupuesto autorizado está bloqueado.");
- let b={...(o.budget||{}),...getBudgetForm(id),status:"Enviado",sentAt:new Date().toISOString(),token:"smf-"+id+"-"+Date.now()};
- o.budget=b;o.status="Esperando aprobación";save();
- const v=vehicle(o.vehicleId),c=customer(v.customerId),base=location.href.split("#")[0],link=base+"#presupuesto/"+encodeURIComponent(b.token),official=companyWhatsapp();
- const msg=`${db.company.name||"SMF Taller"} · Presupuesto de ${v.plate}. Revíselo y seleccione sus opciones de facturación y pago para autorizarlo: ${link}`;
- const wa=(c.phone||"").replace(/\D/g,"");
- if(wa)window.open(`https://wa.me/${wa}?text=${encodeURIComponent(msg)}`,"_blank");
- alert(`Presupuesto preparado. El enlace fue generado para el cliente.${official?"\n\nWhatsApp oficial configurado: "+db.company.whatsapp:"\n\nConfigure el WhatsApp oficial en Configuración para mostrarlo al cliente."}`);
+ let o=db.orders.find(function(x){return x.id===id;});if(!o||o.budget?.status==="Autorizado")return alert("El presupuesto autorizado está bloqueado.");
+ const reqs=(o.partRequests||[]).filter(function(r){return !["Cancelado","Devuelta"].includes(r.status);});
+ const missing=reqs.find(function(r){
+   const ag=document.getElementById("ra_"+id+"_"+r.id)?.value||"";
+   const file=document.getElementById("rqf_"+id+"_"+r.id)?.files?.[0];
+   return !ag||!file;
+ });
+ if(missing)return alert("Completá la agencia y adjuntá la cotización de cada repuesto antes de enviarla al cliente.");
+ const finishSend=function(){
+   const b={...(o.budget||{}),...getBudgetForm(id),status:"Enviado",sentAt:new Date().toISOString(),token:"smf-"+id+"-"+Date.now()};
+   o.budget=b;o.status="Esperando aprobación";save();
+   const v=vehicle(o.vehicleId),c=customer(v.customerId),base=location.href.split("#")[0],link=base+"#presupuesto/"+encodeURIComponent(b.token);
+   const msg=(db.company.name||"SMF Taller")+" · Presupuesto de "+v.plate+". Revíselo y seleccione sus opciones de facturación y pago para autorizarlo: "+link;
+   const wa=(c.phone||"").replace(/\D/g,"");
+   if(wa)window.open("https://wa.me/"+wa+"?text="+encodeURIComponent(msg),"_blank");
+   alert("Cotización enviada. El cliente recibirá el enlace para revisarla y autorizarla.");
+   renderBudgets();
+ };
+ let pending=reqs.length;
+ if(!pending){finishSend();return;}
+ reqs.forEach(function(r){
+   const ag=document.getElementById("ra_"+id+"_"+r.id)?.value||"";
+   const file=document.getElementById("rqf_"+id+"_"+r.id)?.files?.[0];
+   r.agencyId=ag;r.status="En presupuesto";
+   const done=function(){pending--;if(pending===0)finishSend();};
+   const fr=new FileReader();fr.onload=function(e){r.quote=e.target.result;done();};fr.readAsDataURL(file);
+ });
 }
+function clientDidNotProceed(id){
+ const o=db.orders.find(function(x){return x.id===id;});if(!o)return;
+ if(!confirm("¿Confirmar que el cliente no realizará el trabajo cotizado? La orden pasará a Entrega para cobrar únicamente el diagnóstico realizado."))return;
+ o.status="Diagnóstico pendiente de cobro";
+ o.diagnosisOnly=true;
+ o.budget=o.budget||{};
+ o.budget.status="No realizado";
+ o.budget.parts=0;o.budget.materials=0;
+ o.ready=true;
+ o.finalizationPending=false;
+ save();
+ show("entrega");
+ renderDelivery();
+}
+
 function publicBudget(token){
  const o=db.orders.find(x=>x.budget?.token===token);if(!o)return;
  document.body.innerHTML=`<div class="public">${companyHeader()}<p class="muted" style="text-align:center">Presupuesto para aprobación</p><div class="card">${publicCard(o)}</div></div>`;updateClientApproval();
@@ -1236,39 +1270,33 @@ function openFinalization(id){
 }
 function renderDelivery(){
  const root=document.getElementById("deliveryArea");if(!root||!["Gerente","Jefe de Pista"].includes(role()))return;
- const orders=db.orders.filter(o=>isActiveCustomerForVehicle(vehicle(o.vehicleId))&&(["Trabajo terminado"].includes(o.status)||o.ready===true||o.status==="Vehículo listo"));
- const cards=orders.map(o=>{
+ const orders=db.orders.filter(function(o){return isActiveCustomerForVehicle(vehicle(o.vehicleId))&&(o.diagnosisOnly||["Trabajo terminado","Vehículo listo"].includes(o.status)||o.ready===true);});
+ const cards=orders.map(function(o){
    const v=vehicle(o.vehicleId)||{},c=customer(v.customerId)||{};
-   if(o.status==="Trabajo terminado")return '<div class="card" style="margin:10px 0;border-left:4px solid #d97706"><h3>🔎 OT #'+String(o.orderNumber||0).padStart(5,"0")+' · '+esc(v.plate||"")+'</h3><div>'+esc(v.make||"")+' '+esc(v.model||"")+' '+esc(v.year||"")+' · '+esc(c.name||"")+'</div><p class="muted">Trabajo terminado. Pendiente de evaluación final del Jefe de Pista.</p><div class="actions"><button class="success" onclick="openFinalInspection(\''+o.id+'\')">🔎 Evaluar y liberar vehículo</button></div></div>';
-   return '<div class="card" style="margin:10px 0;border-left:4px solid #16a34a"><h3>🚗 OT #'+String(o.orderNumber||0).padStart(5,"0")+' · '+esc(v.plate||"")+'</h3><div>'+esc(v.make||"")+' '+esc(v.model||"")+' '+esc(v.year||"")+' · '+esc(c.name||"")+'</div><p><b>Estado:</b> Vehículo listo para entrega.</p><div class="actions"><button class="success" onclick="markDelivered(\''+o.id+'\')">✓ Marcar entregado</button></div></div>';
+   if(o.diagnosisOnly){
+     const amount=Number(o.diagnosisCharge||0);
+     return '<div class="card" style="margin:10px 0;border-left:4px solid #d97706"><h3>🧾 Diagnóstico sin reparación · OT #'+String(o.orderNumber||0).padStart(5,"0")+'</h3><div><b>🚗 '+esc(v.plate||"")+'</b> · '+esc(v.make||"")+' '+esc(v.model||"")+' '+esc(v.year||"")+' · 👤 '+esc(c.name||"")+'</div><p><b>Motivo:</b> '+esc(o.reason||"")+'</p><p><b>Diagnóstico realizado:</b> '+esc(o.diagnosis||"Sin diagnóstico registrado")+'</p><div class="card" style="background:#f8fafc"><h3>💵 Cobro del diagnóstico</h3><label>Precio del diagnóstico *</label><input id="diagCharge_'+o.id+'" type="number" step=".01" min="0" value="'+(amount||"")+'" placeholder="Ingrese el valor a cobrar"><div class="actions"><button class="success" onclick="saveDiagnosisCharge(&quot;'+o.id+'&quot;)">💾 Guardar cobro y dejar listo para entrega</button></div></div></div>';
+   }
+   if(o.status==="Trabajo terminado")return '<div class="card" style="margin:10px 0;border-left:4px solid #d97706"><h3>🔎 OT #'+String(o.orderNumber||0).padStart(5,"0")+' · '+esc(v.plate||"")+'</h3><div>'+esc(v.make||"")+' '+esc(v.model||"")+' '+esc(v.year||"")+' · '+esc(c.name||"")+'</div><p class="muted">Trabajo terminado. Pendiente de evaluación final del Jefe de Pista.</p><div class="actions"><button class="success" onclick="openFinalInspection(&quot;'+o.id+'&quot;)">🔎 Evaluar y liberar vehículo</button></div></div>';
+   return '<div class="card" style="margin:10px 0;border-left:4px solid #16a34a"><h3>🚗 OT #'+String(o.orderNumber||0).padStart(5,"0")+' · '+esc(v.plate||"")+'</h3><div>'+esc(v.make||"")+' '+esc(v.model||"")+' '+esc(v.year||"")+' · '+esc(c.name||"")+'</div><p><b>Estado:</b> Vehículo listo para entrega.</p><div class="actions"><button class="success" onclick="markDelivered(&quot;'+o.id+'&quot;)">✓ Marcar entregado</button></div></div>';
  }).join("");
- root.innerHTML='<div class="notice">Aquí continúa el flujo después de la evidencia y de la revisión final del Jefe de Pista.</div>'+ (cards||'<div class="card"><div class="muted">No hay vehículos pendientes de entrega.</div></div>');
+ root.innerHTML='<div class="notice">Aquí continúa el flujo después de la aprobación, o cuando el cliente decide no realizar el trabajo y solo corresponde cobrar el diagnóstico.</div>'+ (cards||'<div class="card"><div class="muted">No hay vehículos pendientes de entrega.</div></div>');
 }
-function openFinalInspection(id){
- const o=db.orders.find(x=>x.id===id);if(!o||o.status!=="Trabajo terminado")return;
- const v=vehicle(o.vehicleId)||{},c=customer(v.customerId)||{},root=document.getElementById("deliveryArea");
- root.innerHTML='<div class="card"><h2>🔎 Evaluación final · OT #'+String(o.orderNumber||0).padStart(5,"0")+'</h2><div><b>🚗 '+esc(v.plate||"")+'</b> · '+esc(v.make||"")+' '+esc(v.model||"")+' '+esc(v.year||"")+'</div><div class="muted">👤 '+esc(c.name||"")+'</div><button class="secondary" onclick="renderDelivery()" style="margin-top:10px">← Volver</button></div>'+
- '<div class="card"><h3>Inspección superficial</h3>'+
- '<label><input type="checkbox" id="fiOil_'+id+'"> Nivel de aceite verificado</label>'+
- '<label><input type="checkbox" id="fiCool_'+id+'"> Refrigerante verificado</label>'+
- '<label><input type="checkbox" id="fiBrake_'+id+'"> Líquido de frenos verificado</label>'+
- '<label><input type="checkbox" id="fiWasher_'+id+'"> Limpiaparabrisas verificado</label>'+
- '<label><input type="checkbox" id="fiLeaks_'+id+'"> Sin fugas visibles</label>'+
- '<label><input type="checkbox" id="fiLights_'+id+'"> Luces/testigos revisados</label>'+
- '<label>Observaciones finales</label><textarea id="fiNotes_'+id+'" placeholder="Resultado de la revisión..."></textarea>'+
- '<div class="actions"><button class="success" onclick="approveFinalInspectionCurrent(\''+id+'\')">✓ Aprobar y notificar vehículo listo</button></div></div>';
-}
-function approveFinalInspectionCurrent(id){
- const o=db.orders.find(x=>x.id===id);if(!o)return;
- const ids=["fiOil_","fiCool_","fiBrake_","fiWasher_","fiLeaks_","fiLights_"];
- if(!ids.every(x=>document.getElementById(x+id)?.checked))return alert("Verificá todos los puntos de inspección antes de liberar el vehículo.");
- o.finalInspection={approved:true,approvedAt:new Date().toISOString(),approvedBy:current?.id||"",notes:document.getElementById("fiNotes_"+id)?.value.trim()||""};
+function saveDiagnosisCharge(id){
+ const o=db.orders.find(function(x){return x.id===id;});if(!o||!o.diagnosisOnly)return;
+ const amount=Number(document.getElementById("diagCharge_"+id)?.value||0);
+ if(amount<=0)return alert("Ingrese un precio válido para el diagnóstico.");
+ o.diagnosisCharge=amount;
+ o.budget=o.budget||{};
+ o.budget.parts=0;o.budget.materials=0;o.budget.labor=amount;o.budget.total=amount;
  o.status="Vehículo listo";
  o.ready=true;
- o.finalizationPending=false;
+ o.diagnosisOnly=false;
+ o.diagnosisChargeSavedAt=new Date().toISOString();
  save();
  renderDelivery();
 }
+
 function markDelivered(id){
  const o=db.orders.find(x=>x.id===id);if(!o)return;
  if(o.status!=="Vehículo listo"&&o.ready!==true)return alert("El vehículo todavía no está listo para entrega.");
