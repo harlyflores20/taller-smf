@@ -1,0 +1,27 @@
+name: SMF debug OT 2
+on:
+  push:
+    paths:
+      - .github/workflows/smf-debug-ot2.yml
+permissions:
+  contents: read
+jobs:
+  debug:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Inspect
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          s=Path('index.html').read_text(encoding='utf-8')
+          for term in ['Diagnóstico','Diagnostico','diagnóstico','diagnostico','openDiagnosis','returnToDiagnosis']:
+            print('\n===',term,'===')
+            p=0
+            c=0
+            while True:
+              p=s.lower().find(term.lower(),p)
+              if p<0 or c>=8: break
+              print(s[max(0,p-220):p+420].replace('\n',' ')[:650])
+              p+=len(term);c+=1
+          PY
