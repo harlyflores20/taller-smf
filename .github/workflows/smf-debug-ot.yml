@@ -1,0 +1,31 @@
+name: SMF debug OT
+on:
+  push:
+    paths:
+      - .github/workflows/smf-debug-ot.yml
+permissions:
+  contents: read
+jobs:
+  debug:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Inspect
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          s=Path('index.html').read_text(encoding='utf-8')
+          print('SECTIONS:')
+          for x in re.findall(r'<section[^>]+id=["\x27]([^"\x27]+)',s,re.I): print(x)
+          print('DIAGNOSTIC FUNCTIONS:')
+          for m in re.finditer(r'function\s+([A-Za-z0-9_$]+)\s*\([^)]*\)',s):
+            a=m.start(); b=s.find('function ',m.end()); b=len(s) if b<0 else b
+            body=s[a:b]
+            if re.search(r'diagn|diagnóstico|diagnostico',body,re.I): print(m.group(1))
+          print('ORDER CREATE FUNCTIONS:')
+          for m in re.finditer(r'function\s+([A-Za-z0-9_$]+)\s*\([^)]*\)',s):
+            a=m.start(); b=s.find('function ',m.end()); b=len(s) if b<0 else b
+            body=s[a:b]
+            if 'db.orders.push' in body: print(m.group(1))
+          PY
