@@ -1400,9 +1400,28 @@ function renderEvidence(){
  const os=db.orders.filter(o=>(role()==="Gerente"||role()==="Jefe de Pista"||o.technicianId===current.id)&&o.finalizationPending&&o.budget?.status==="Autorizado"&&isActiveCustomerForVehicle(vehicle(o.vehicleId)));
  const cards=os.map(o=>{
    const v=vehicle(o.vehicleId)||{};
-   return '<div class="card" style="margin:10px 0;border-left:4px solid #d97706"><div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap"><div><h3 style="margin:0">📋 OT #'+String(o.orderNumber||0).padStart(5,"0")+'</h3><div><b>🚗 '+esc(v.plate||"")+'</b> · '+esc(v.make||"")+' '+esc(v.model||"")+' '+esc(v.year||"")+'</div><div class="muted">Presupuesto autorizado · pendiente de evidencia final</div></div><button class="success" onclick="openFinalization(\''+o.id+'\')">📸 Subir evidencia</button></div></div>';
+   return '<div class="card" style="margin:10px 0;border-left:4px solid #d97706"><div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap"><div><h3 style="margin:0">📋 OT #'+String(o.orderNumber||0).padStart(5,"0")+'</h3><div><b>🚗 '+esc(v.plate||"")+'</b> · '+esc(v.make||"")+' '+esc(v.model||"")+' '+esc(v.year||"")+'</div><div class="muted">Presupuesto autorizado · pendiente de evidencia final</div></div><div class="actions" style="margin-top:0"><button class="secondary" onclick="returnToPendingFromEvidence(\''+o.id+'\')">↩ Regresar a Pendientes</button><button class="success" onclick="openFinalization(\''+o.id+'\')">📸 Subir evidencia</button></div></div></div>';
  }).join("");
  root.innerHTML='<div class="notice">Esta etapa aparece únicamente después de que el cliente autoriza el presupuesto.</div>'+ (cards||'<div class="card"><div class="muted">No hay órdenes pendientes de evidencia.</div></div>');
+}
+function returnToPendingFromEvidence(id){
+ const o=db.orders.find(function(x){return x.id===id;});if(!o)return;
+ if(!confirm("¿Regresar esta OT a Pendientes? La aprobación actual quedará abierta para revisar nuevamente la cotización."))return;
+ o.budget=o.budget||{};
+ o.budget.status="Enviado";
+ delete o.budget.approvedAt;
+ delete o.budget.customerResponse;
+ o.budget.locked=false;
+ o.status="Esperando aprobación";
+ o.workflowStage="pendientes";
+ o.finalizationPending=false;
+ o.ready=false;
+ delete o.finalInspection;
+ delete o.readyNotified;
+ delete o.readyNotifiedAt;
+ save();
+ show("pendientes");
+ renderPending();
 }
 function openFinalization(id){
  const o=db.orders.find(x=>x.id===id);if(!o||o.budget?.status!=="Autorizado"||!o.finalizationPending)return;
