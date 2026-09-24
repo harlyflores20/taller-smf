@@ -1,0 +1,37 @@
+name: SMF fix OT 2
+on:
+  push:
+    paths:
+      - .github/workflows/smf-fix-ot2.yml
+permissions:
+  contents: write
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Modify index
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          p=Path('index.html')
+          s=p.read_text(encoding='utf-8')
+          if 'smfToast' not in s:
+              helper='''<script>\n(function(){\nfunction smfToast(m){var t=document.getElementById("smfToast");if(!t){t=document.createElement("div");t.id="smfToast";t.style.cssText="position:fixed;right:22px;bottom:22px;z-index:99999;background:#15803d;color:#fff;padding:14px 18px;border-radius:10px;font-weight:800;box-shadow:0 8px 30px #0004";document.body.appendChild(t)}t.textContent=m;t.style.display="block";clearTimeout(window.__smfToastTimer);window.__smfToastTimer=setTimeout(function(){t.style.display="none"},2600)}\nwindow.smfReturnDiagnosisToNew=function(){var n=(document.getElementById("smfReturnOTNumber")||{}).value||"";n=n.trim();if(!n){alert("Ingrese el número de OT.");return}var o=(window.db&&db.orders||[]).find(function(x){return String(x.orderNumber||"")===n});if(!o){alert("No se encontró la OT #"+n+".");return}if(!confirm("¿Regresar la OT #"+n+" a Nueva Orden?"))return;o.workflowStage="nuevaOrden";o.status="Nueva orden";o.diagnosisOnly=false;delete o.diagnosis;delete o.diagnosisAt;delete o.diagnosisTechnicianId;delete o.diagnosisTechnicianName;if(typeof save==="function")save();smfToast("OT #"+n+" regresada a Nueva Orden");if(typeof show==="function")show("nuevaOrden");if(typeof renderNewOrder==="function")renderNewOrder();};\ndocument.addEventListener("click",function(e){var b=e.target.closest&&e.target.closest("button");if(!b)return;var oc=b.getAttribute("onclick")||"";if(!/createOrder|saveOrder|guardarNuevaOrden|crearOrden/i.test(oc))return;if(b.dataset.smfBusy==="1"){e.preventDefault();e.stopImmediatePropagation();return}var before=(window.db&&db.orders||[]).length;b.dataset.smfBusy="1";b.disabled=true;setTimeout(function(){var after=(window.db&&db.orders||[]).length;if(after>before)smfToast("✅ OT creada con éxito");setTimeout(function(){b.disabled=false;b.dataset.smfBusy=""},800)},100)},true);\n})();</script>'''
+              s=s.replace('</body>',helper+'\n</body>',1)
+          if 'smfDiagnosisReturnPanel' not in s:
+              m=re.search(r'<section[^>]+id=["\\\'](?:diagnostico|diagnosis)["\\\'][^>]*>',s,re.I)
+              if not m: raise SystemExit('No se encontro la ventana de Diagnostico')
+              panel='''<div id="smfDiagnosisReturnPanel" class="card" style="border-left:4px solid #b45309"><h3>↩ Corregir ingreso de OT</h3><p class="muted">Si una OT fue ingresada incorrectamente, regresala a Nueva Orden para corregir los datos.</p><div class="actions"><input id="smfReturnOTNumber" placeholder="Número de OT" style="max-width:220px"><button class="secondary" onclick="smfReturnDiagnosisToNew()">↩ Regresar a Nueva Orden</button></div></div>'''
+              s=s[:m.end()]+panel+s[m.end():]
+          p.write_text(s,encoding='utf-8')
+          PY
+      - name: Commit index and remove workflows
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html .github/workflows/smf-fix-ot.yml .github/workflows/smf-fix-ot2.yml
+          git rm -f .github/workflows/smf-fix-ot.yml .github/workflows/smf-fix-ot2.yml
+          git commit -m "Corregir creacion de OT y regreso a Nueva Orden"
+          git push
