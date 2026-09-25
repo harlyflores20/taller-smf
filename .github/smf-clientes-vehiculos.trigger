@@ -1,0 +1,1 @@
+Aplicar cambios de Clientes: multiples vehiculos, catalogo de motores y entrada manual. Reejecucion segura 2026-09-25.
