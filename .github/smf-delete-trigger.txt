@@ -1,0 +1,1 @@
+Aplicar eliminacion segura de clientes y vehiculos.
