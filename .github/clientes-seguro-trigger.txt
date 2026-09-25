@@ -1,1 +1,0 @@
-Aplicar cambio de Clientes y Vehiculos con bloqueo por historial cobrado.
