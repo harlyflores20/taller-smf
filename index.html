@@ -676,14 +676,43 @@ function clearPeople(){
 function openVehicle(id){const v=vehicle(id);if(!v)return;currentVehicle=v;openCustomer(v.customerId);setTimeout(function(){const el=document.getElementById("vehicleDetail_"+id);if(el)el.scrollIntoView({behavior:"smooth",block:"center"});},50);}
 function openCustomer(id){
   const c=customer(id);if(!c)return;const vs=db.vehicles.filter(v=>v.customerId===id);customerDetail.classList.remove("hidden");
-  customerDetail.innerHTML='<div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap"><div><h3>👤 '+esc(c.name)+'</h3><div class="muted">'+esc(c.type||"Persona")+' · '+esc(c.phone)+(c.rtn?' · RTN '+esc(c.rtn):"")+'</div></div><div class="actions" style="margin-top:0"><button onclick="editCustomer(\''+id+'\')">✏️ Editar cliente</button>'+(role()==="Gerente"?'<button class="danger" onclick="archiveCustomer(\''+id+'\')">🗄️ Archivar cliente</button>':'')+'<button class="secondary" onclick="closeCustomerDetail()">Cerrar</button></div></div><div class="card" style="margin-top:12px"><h3>🚗 Vehículos ('+vs.length+')</h3>'+(vs.length?vs.map(function(v){return customerVehicleCard(c,v);}).join(""):'<div class="muted">Este cliente no tiene vehículos registrados.</div>')+'</div>';
+  customerDetail.innerHTML='<div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap"><div><h3>👤 '+esc(c.name)+'</h3><div class="muted">'+esc(c.type||"Persona")+' · '+esc(c.phone)+(c.rtn?' · RTN '+esc(c.rtn):"")+'</div></div><div class="actions" style="margin-top:0"><button onclick="editCustomer(\''+id+'\')">✏️ Editar cliente</button><button class="danger" onclick="deleteCustomer(\''+id+'\')">🗑️ Eliminar cliente</button><button class="secondary" onclick="closeCustomerDetail()">Cerrar</button></div></div><div class="card" style="margin-top:12px"><h3>🚗 Vehículos ('+vs.length+')</h3>'+(vs.length?vs.map(function(v){return customerVehicleCard(c,v);}).join(""):'<div class="muted">Este cliente no tiene vehículos registrados.</div>')+'</div>';
 }
 function customerVehicleCard(c,v){
   const os=db.orders.filter(function(o){return o.vehicleId===v.id;});
-  return '<div id="vehicleDetail_'+v.id+'" class="card" style="border-left:4px solid '+(v.active===false?"var(--muted)":"var(--brand)")+'"><div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap"><div><h3>🚗 '+esc(v.plate)+'</h3><div>'+esc(v.make)+' '+esc(v.model)+' '+esc(v.year)+' · '+esc(v.engine||"Motor no registrado")+'</div><div class="muted">'+Number(v.km||0).toLocaleString()+' km · '+(v.active===false?"Inactivo":"Activo")+'</div></div><div class="actions" style="margin-top:0"><button onclick="editVehicle(\''+v.id+'\')">✏️ Editar</button><button class="secondary" onclick="openVehicleHistory(\''+v.id+'\')">📋 Historial ('+os.length+')</button><button class="light" onclick="changeVehicleOwner(\''+v.id+'\')">🔄 Propietario</button><button class="'+(v.active===false?"success":"danger")+'" onclick="toggleVehicle(\''+v.id+'\')">'+(v.active===false?"Activar":"Inactivar")+'</button></div></div></div>';
+  return '<div class="card"><div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap"><div><h3>🚗 '+esc(v.plate)+'</h3><div>'+esc(v.make)+' '+esc(v.model)+' '+esc(v.year)+' · '+esc(v.engine||"Motor no registrado")+'</div><div class="muted">'+Number(v.km||0).toLocaleString()+' km · '+(v.active===false?"Inactivo":"Activo")+'</div></div><div class="actions" style="margin-top:0"><button onclick="editVehicle(\''+v.id+'\')">✏️ Editar</button><button class="secondary" onclick="openVehicleHistory(\''+v.id+'\')">📋 Historial ('+os.length+')</button><button class="light" onclick="changeVehicleOwner(\''+v.id+'\')">🔄 Propietario</button><button class="'+(v.active===false?"success":"danger")+'" onclick="toggleVehicle(\''+v.id+'\')">'+(v.active===false?"Activar":"Inactivar")+'</button><button class="danger" onclick="deleteVehicle(\''+v.id+'\')">🗑️ Eliminar</button></div></div></div>';
 }
 function closeCustomerDetail(){customerDetail.classList.add("hidden");customerDetail.innerHTML="";}
-function deleteCustomer(id){archiveCustomer(id);}
+function smfHasPaidHistoryForVehicle(vehicleId){
+  return db.orders.some(function(o){if(o.vehicleId!==vehicleId)return false;return o.paid===true||!!o.paidAt||Number(o.paymentReceived||0)>0;});
+}
+function smfPaidOrdersForCustomer(customerId){
+  const ids=new Set(db.vehicles.filter(function(v){return v.customerId===customerId;}).map(function(v){return v.id;}));
+  return db.orders.filter(function(o){if(!ids.has(o.vehicleId))return false;return o.paid===true||!!o.paidAt||Number(o.paymentReceived||0)>0;});
+}
+function deleteVehicle(id){
+  const v=vehicle(id);if(!v)return;
+  if(smfHasPaidHistoryForVehicle(id)){alert("Este vehículo tiene historial con cobros registrados y no se puede eliminar. Solo puede cambiar de propietario.");return;}
+  const c=customer(v.customerId);
+  if(!confirm("¿Eliminar definitivamente el vehículo "+(v.plate||"")+"? No tiene cobros registrados. Sus órdenes sin pago también se eliminarán."))return;
+  db.orders=db.orders.filter(function(o){return o.vehicleId!==id;});
+  db.vehicles=db.vehicles.filter(function(x){return x.id!==id;});
+  save();
+  if(c)openCustomer(c.id);else closeCustomerDetail();
+  renderCustomers();
+}
+function deleteCustomer(id){
+  const c=customer(id);if(!c)return;
+  const vs=db.vehicles.filter(function(v){return v.customerId===id;});
+  if(smfPaidOrdersForCustomer(id).length){alert("Este cliente tiene historial con cobros registrados. No se puede eliminar.");return;}
+  if(!confirm("¿Eliminar definitivamente a "+(c.name||"este cliente")+"? Sus vehículos y órdenes sin pago también se eliminarán."))return;
+  const ids=new Set(vs.map(function(v){return v.id;}));
+  db.orders=db.orders.filter(function(o){return !ids.has(o.vehicleId);});
+  db.vehicles=db.vehicles.filter(function(v){return v.customerId!==id;});
+  db.customers=db.customers.filter(function(x){return x.id!==id;});
+  save();customerDetail.classList.add("hidden");customerDetail.innerHTML="";renderCustomers();
+}
+
 
 function editCustomer(id){
   const c=customer(id);if(!c)return;
