@@ -1,1 +1,0 @@
-RESPALDO DE CONTROL - El estado completo del index.html de la rama main queda preservado en el commit base de esta rama. Este archivo es un marcador de respaldo; no modifica index.html.
