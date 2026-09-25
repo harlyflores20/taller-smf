@@ -1,0 +1,41 @@
+name: SMF Clientes seguro
+on:
+  push:
+    paths:
+      - .github/clientes-seguro-trigger.txt
+permissions:
+  contents: write
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Actualizar Clientes
+        shell: python
+        run: |
+          from pathlib import Path
+          import re
+          p=Path('index.html')
+          s=p.read_text(encoding='utf-8')
+          if 'function smfHasPaidHistoryForVehicle' in s:
+              raise SystemExit(0)
+          pat=re.compile(r'function openCustomer\(id\)\{.*?\n\}\nfunction customerVehicleCard',re.S)
+          repl='''function openCustomer(id){\n  const c=customer(id);if(!c)return;const vs=db.vehicles.filter(v=>v.customerId===id);customerDetail.classList.remove("hidden");\n  customerDetail.innerHTML='<div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap"><div><h3>👤 '+esc(c.name)+'</h3><div class="muted">'+esc(c.type||"Persona")+' · '+esc(c.phone)+(c.rtn?' · RTN '+esc(c.rtn):"")+'</div></div><div class="actions" style="margin-top:0"><button onclick="editCustomer(\\''+id+'\\')">✏️ Editar cliente</button><button class="danger" onclick="deleteCustomer(\\''+id+'\\')">🗑️ Eliminar cliente</button><button class="secondary" onclick="closeCustomerDetail()">Cerrar</button></div></div><div class="card" style="margin-top:12px"><h3>🚗 Vehículos ('+vs.length+')</h3>'+(vs.length?vs.map(function(v){return customerVehicleCard(c,v);}).join(""):'<div class="muted">Este cliente no tiene vehículos registrados.</div>')+'</div>';\n}\nfunction customerVehicleCard'''
+          if not pat.search(s): raise SystemExit('No se encontro openCustomer')
+          s=pat.sub(repl,s,count=1)
+          pat=re.compile(r'function customerVehicleCard\(c,v\)\{.*?\n\}\nfunction closeCustomerDetail',re.S)
+          repl='''function customerVehicleCard(c,v){\n  const os=db.orders.filter(function(o){return o.vehicleId===v.id;});\n  return '<div class="card"><div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap"><div><h3>🚗 '+esc(v.plate)+'</h3><div>'+esc(v.make)+' '+esc(v.model)+' '+esc(v.year)+' · '+esc(v.engine||"Motor no registrado")+'</div><div class="muted">'+Number(v.km||0).toLocaleString()+' km · '+(v.active===false?"Inactivo":"Activo")+'</div></div><div class="actions" style="margin-top:0"><button onclick="editVehicle(\\''+v.id+'\\')">✏️ Editar</button><button class="secondary" onclick="openVehicleHistory(\\''+v.id+'\\')">📋 Historial ('+os.length+')</button><button class="light" onclick="changeVehicleOwner(\\''+v.id+'\\')">🔄 Propietario</button><button class="'+(v.active===false?"success":"danger")+'" onclick="toggleVehicle(\\''+v.id+'\\')">'+(v.active===false?"Activar":"Inactivar")+'</button><button class="danger" onclick="deleteVehicle(\\''+v.id+'\\')">🗑️ Eliminar</button></div></div></div>';\n}\nfunction closeCustomerDetail'''
+          if not pat.search(s): raise SystemExit('No se encontro customerVehicleCard')
+          s=pat.sub(repl,s,count=1)
+          old='function deleteCustomer(id){archiveCustomer(id);}'
+          new='''function smfHasPaidHistoryForVehicle(vehicleId){\n  return db.orders.some(function(o){if(o.vehicleId!==vehicleId)return false;return o.paid===true||!!o.paidAt||Number(o.paymentReceived||0)>0;});\n}\nfunction smfPaidOrdersForCustomer(customerId){\n  const ids=new Set(db.vehicles.filter(function(v){return v.customerId===customerId;}).map(function(v){return v.id;}));\n  return db.orders.filter(function(o){if(!ids.has(o.vehicleId))return false;return o.paid===true||!!o.paidAt||Number(o.paymentReceived||0)>0;});\n}\nfunction deleteVehicle(id){\n  const v=vehicle(id);if(!v)return;\n  if(smfHasPaidHistoryForVehicle(id)){alert("Este vehículo tiene historial con cobros registrados y no se puede eliminar. Solo puede cambiar de propietario.");return;}\n  const c=customer(v.customerId);\n  if(!confirm("¿Eliminar definitivamente el vehículo "+(v.plate||"")+"? No tiene cobros registrados. Sus órdenes sin pago también se eliminarán."))return;\n  db.orders=db.orders.filter(function(o){return o.vehicleId!==id;});\n  db.vehicles=db.vehicles.filter(function(x){return x.id!==id;});\n  save();\n  if(c)openCustomer(c.id);else closeCustomerDetail();\n  renderCustomers();\n}\nfunction deleteCustomer(id){\n  const c=customer(id);if(!c)return;\n  const vs=db.vehicles.filter(function(v){return v.customerId===id;});\n  if(smfPaidOrdersForCustomer(id).length){alert("Este cliente tiene historial con cobros registrados. No se puede eliminar.");return;}\n  if(!confirm("¿Eliminar definitivamente a "+(c.name||"este cliente")+"? Sus vehículos y órdenes sin pago también se eliminarán."))return;\n  const ids=new Set(vs.map(function(v){return v.id;}));\n  db.orders=db.orders.filter(function(o){return !ids.has(o.vehicleId);});\n  db.vehicles=db.vehicles.filter(function(v){return v.customerId!==id;});\n  db.customers=db.customers.filter(function(x){return x.id!==id;});\n  save();customerDetail.classList.add("hidden");customerDetail.innerHTML="";renderCustomers();\n}\n'''
+          if old not in s: raise SystemExit('No se encontro deleteCustomer')
+          s=s.replace(old,new,1)
+          p.write_text(s,encoding='utf-8')
+      - name: Guardar
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git commit -m "Clientes: eliminar solo sin historial cobrado"
+          git push
