@@ -1,0 +1,1 @@
+(function(){function boot(){var f=document.getElementById('smfApp');if(!f)return;f.addEventListener('load',function(){try{var d=f.contentDocument,s=d.createElement('script');s.src='smf_clientes_motores.js';d.body.appendChild(s)}catch(e){console.error(e)}})}if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);else boot()})();
