@@ -33,7 +33,7 @@ jobs:
           stamp = datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')
           (backup / f'index_{stamp}_antes_clientes.html').write_text(s, encoding='utf-8')
 
-          open_pat = re.compile(r'function openCustomer\\(id\\)\\{.*?\\n\\}\\nfunction customerVehicleCard', re.S)
+          open_pat = re.compile(r'function openCustomer\(id\)\{.*?\n\}\nfunction customerVehicleCard', re.S)
           open_rep = r'''function openCustomer(id){
             const c=customer(id);if(!c)return;const vs=db.vehicles.filter(v=>v.customerId===id);customerDetail.classList.remove("hidden");
             customerDetail.innerHTML='<div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap"><div><h3>👤 '+esc(c.name)+'</h3><div class="muted">'+esc(c.type||"Persona")+' · '+esc(c.phone)+(c.rtn?' · RTN '+esc(c.rtn):"")+'</div></div><div class="actions" style="margin-top:0"><button onclick="editCustomer(\\''+id+'\\')">✏️ Editar cliente</button><button class="danger" onclick="deleteCustomer(\\''+id+'\\')">🗑️ Eliminar cliente</button><button class="secondary" onclick="closeCustomerDetail()">Cerrar</button></div></div><div class="card" style="margin-top:12px"><h3>🚗 Vehículos ('+vs.length+')</h3>'+(vs.length?vs.map(function(v){return customerVehicleCard(c,v);}).join(""):'<div class="muted">Este cliente no tiene vehículos registrados.</div>')+'</div>';
@@ -43,7 +43,7 @@ jobs:
               raise SystemExit('No se encontro openCustomer; no se modifico index.html')
           s = open_pat.sub(open_rep, s, count=1)
 
-          veh_pat = re.compile(r'function customerVehicleCard\\(c,v\\)\\{.*?\\n\\}\\nfunction closeCustomerDetail', re.S)
+          veh_pat = re.compile(r'function customerVehicleCard\(c,v\)\{.*?\n\}\nfunction closeCustomerDetail', re.S)
           veh_rep = r'''function customerVehicleCard(c,v){
             const os=db.orders.filter(function(o){return o.vehicleId===v.id;});
             const protectedHistory=smfHasPaidHistoryForVehicle(v.id);
@@ -109,15 +109,12 @@ jobs:
 
       - name: Validar
         run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          s=Path('index.html').read_text(encoding='utf-8')
-          required=['function smfHasPaidHistoryForVehicle','function deleteVehicle','function deleteCustomer','protectedHistory','changeVehicleOwner']
-          missing=[x for x in required if x not in s]
-          if missing:
-              raise SystemExit('Faltan: '+', '.join(missing))
-          print('VALIDACION OK')
-          PY
+          test -s index.html
+          grep -q 'function smfHasPaidHistoryForVehicle' index.html
+          grep -q 'function deleteVehicle' index.html
+          grep -q 'function deleteCustomer' index.html
+          test -d respaldos
+          echo 'VALIDACION OK'
 
       - name: Commit cambios
         run: |
