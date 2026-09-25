@@ -3,6 +3,7 @@ on:
   push:
     paths:
       - .github/smf-delete-trigger.txt
+      - .github/workflows/smf-delete-trigger.yml
 permissions:
   contents: write
 jobs:
